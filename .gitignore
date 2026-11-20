@@ -1,0 +1,9 @@
+build/
+cache/
+outputs/
+ai/.venv/
+__pycache__/
+*.pyc
+.vscode/
+.DS_Store
+imgui.ini

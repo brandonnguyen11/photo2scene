@@ -1,0 +1,7 @@
+# Photo2Scene AI pipeline (Python 3.9+)
+# Install PyTorch first if you want a specific CUDA build: https://pytorch.org/get-started/locally/
+torch>=2.1
+transformers>=4.45   # Depth Anything V2 support
+opencv-python>=4.8
+numpy>=1.24
+pillow>=10.0         # used by the Hugging Face image processor
