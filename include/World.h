@@ -59,7 +59,10 @@ struct WorldDesc {
     glm::vec3 waterCenter{0.0f};
     float waterSize = 80.0f;
     float waterLevel = 0.0f;
-    float waterWaveScale = 1.0f;  // calm pools use ~0.12
+    float waterWaveScale = 1.0f;   // ocean ~1, calm pool ~0.2
+    float waterRadius = 0.0f;      // >0 → circular pool (disc + clip)
+    float waterShoreZ = 1e6f;      // discard water inland of this Z (beach)
+    bool waterCircular = false;
     int grassCount = 60000;
 };
 

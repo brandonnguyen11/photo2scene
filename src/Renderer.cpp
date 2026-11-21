@@ -273,6 +273,10 @@ void Renderer::renderWorld(const World& world, const Scene* photoScene, const Ca
         waterShader_.setMat4("uProj", proj);
         waterShader_.setFloat("uTime", timeSeconds);
         waterShader_.setFloat("uWaveScale", world.desc().waterWaveScale);
+        waterShader_.setFloat("uClipRadius",
+                              world.desc().waterCircular ? world.desc().waterRadius : 0.0f);
+        waterShader_.setFloat("uShoreZ", world.desc().waterShoreZ);
+        waterShader_.setVec3("uWaterCenter", world.desc().waterCenter);
         waterShader_.setVec3("uCameraPos", eye);
         waterShader_.setVec3("uSunDir", ls.sun.direction());
         waterShader_.setVec3("uSunColor", srgbToLinear(ls.sun.color) * ls.sun.intensity);
@@ -283,7 +287,11 @@ void Renderer::renderWorld(const World& world, const Scene* photoScene, const Ca
         waterShader_.setFloat("uFogDensity", fogDensity);
         waterShader_.setVec3("uFogColor", fogColor);
         glDisable(GL_CULL_FACE);
+        // Prefer water over terrain when they meet at the shore / basin rim.
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(-1.0f, -1.0f);
         world.waterMesh().draw();
+        glDisable(GL_POLYGON_OFFSET_FILL);
         glDisable(GL_BLEND);
     }
 

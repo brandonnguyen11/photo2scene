@@ -289,3 +289,41 @@ MeshData makeFrondMesh(float length, float width) {
     m.computeBounds();
     return m;
 }
+
+MeshData makeDiscMesh(float radius, int rings, int segments) {
+    MeshData m;
+    rings = std::max(rings, 2);
+    segments = std::max(segments, 8);
+    // Center vertex
+    m.vertices.push_back({{0, 0, 0}, {0, 1, 0}, {0.5f, 0.5f}});
+    for (int r = 1; r <= rings; ++r) {
+        const float t = static_cast<float>(r) / rings;
+        const float rad = t * radius;
+        for (int i = 0; i < segments; ++i) {
+            const float a = static_cast<float>(i) / segments * 6.2831853f;
+            const float c = std::cos(a), s = std::sin(a);
+            m.vertices.push_back({{c * rad, 0, s * rad},
+                                  {0, 1, 0},
+                                  {c * 0.5f * t + 0.5f, s * 0.5f * t + 0.5f}});
+        }
+    }
+    // First ring fans from center
+    for (int i = 0; i < segments; ++i) {
+        const uint32_t i0 = 1 + static_cast<uint32_t>(i);
+        const uint32_t i1 = 1 + static_cast<uint32_t>((i + 1) % segments);
+        m.indices.insert(m.indices.end(), {0, i0, i1});
+    }
+    for (int r = 1; r < rings; ++r) {
+        const uint32_t base0 = 1 + static_cast<uint32_t>((r - 1) * segments);
+        const uint32_t base1 = 1 + static_cast<uint32_t>(r * segments);
+        for (int i = 0; i < segments; ++i) {
+            const uint32_t i0 = base0 + static_cast<uint32_t>(i);
+            const uint32_t i1 = base0 + static_cast<uint32_t>((i + 1) % segments);
+            const uint32_t i2 = base1 + static_cast<uint32_t>(i);
+            const uint32_t i3 = base1 + static_cast<uint32_t>((i + 1) % segments);
+            m.indices.insert(m.indices.end(), {i0, i2, i1, i1, i2, i3});
+        }
+    }
+    m.computeBounds();
+    return m;
+}

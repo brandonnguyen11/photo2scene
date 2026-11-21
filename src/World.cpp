@@ -342,15 +342,18 @@ void World::buildRoyalGarden() {
         }
     }
 
-    // Fountain pool as animated water plane (small).
+    // Circular pool water sitting inside the fountain rim (not a square grid).
     desc_.hasWater = true;
-    desc_.waterCenter = {0.0f, 0.72f, 0.0f};
-    desc_.waterSize = 9.5f;
-    desc_.waterLevel = 0.72f;
-    desc_.waterWaveScale = 0.12f;
+    desc_.waterCircular = true;
+    desc_.waterRadius = 5.15f;
+    desc_.waterCenter = {0.0f, 0.78f, 0.0f};
+    desc_.waterSize = desc_.waterRadius * 2.0f;
+    desc_.waterLevel = 0.78f;
+    desc_.waterWaveScale = 0.28f;  // calm but visible Brownian ripples
+    desc_.waterShoreZ = 1e6f;  // no shore clip
     waterDeep_ = {0.08f, 0.32f, 0.40f};
-    waterShallow_ = {0.25f, 0.58f, 0.60f};
-    waterGpu_.upload(makeGridMesh(desc_.waterSize, 64));
+    waterShallow_ = {0.28f, 0.60f, 0.62f};
+    waterGpu_.upload(makeDiscMesh(desc_.waterRadius, 28, 64));
 
     if (desc_.photoSpots.empty()) {
         desc_.photoSpots.push_back({"Fountain court", {0.0f, 0.0f, -12.0f}, 0.0f});
@@ -381,11 +384,17 @@ void World::buildBeach() {
     const glm::vec3 canvas(0.92f, 0.88f, 0.78f);
 
     desc_.hasWater = true;
-    if (desc_.waterSize < 10.0f) desc_.waterSize = 90.0f;
-    if (std::abs(desc_.waterCenter.z) < 1.0f) desc_.waterCenter = {0.0f, desc_.waterLevel, -55.0f};
+    desc_.waterCircular = false;
+    // Keep the ocean sheet in the −Z basin and clip anything inland of the shore.
+    if (desc_.waterSize < 10.0f) desc_.waterSize = 100.0f;
+    desc_.waterLevel = 0.12f;  // sit above the submerged shelf, under the dunes
+    desc_.waterCenter = {0.0f, desc_.waterLevel, -58.0f};
+    desc_.waterWaveScale = 0.85f;
+    desc_.waterShoreZ = -6.0f;  // discard water that climbs onto the sand
+    desc_.waterRadius = 0.0f;
     waterDeep_ = {0.02f, 0.10f, 0.22f};
-    waterShallow_ = {0.12f, 0.42f, 0.48f};
-    waterGpu_.upload(makeGridMesh(desc_.waterSize, 96));
+    waterShallow_ = {0.15f, 0.45f, 0.50f};
+    waterGpu_.upload(makeGridMesh(desc_.waterSize, 128));
 
     // Pier built from individual planks + posts + railings.
     const float pierY = 1.05f;

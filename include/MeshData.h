@@ -43,6 +43,8 @@ MeshData makeSphereMesh(float radius, int slices = 16, int stacks = 12);
 MeshData makeGrassBladeMesh();
 // Flat water grid on XZ, centered at origin.
 MeshData makeGridMesh(float size, int resolution);
+// Circular water disc (fountain pools).
+MeshData makeDiscMesh(float radius, int rings = 24, int segments = 48);
 // Irregular boulder (noisy sphere).
 MeshData makeRockMesh(float radius, int slices = 14, int stacks = 10, float seed = 1.0f);
 // Tapered trunk from baseRadius to topRadius.
