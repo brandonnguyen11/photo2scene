@@ -24,7 +24,7 @@ uniform sampler2D uAlbedoTex;
 uniform bool uUseTexture;
 uniform vec3 uBaseColor;      // sRGB
 uniform bool uChecker;
-uniform int uMaterial;        // 0 plain, 1 grass, 2 gravel, 3 hedge, 4 sand, 5 stone, 6 water
+uniform int uMaterial;        // 0 plain, 1 grass, 2 gravel, 3 hedge, 4 sand, 5 stone, 6 water, 7 wood, 8 stucco, 9 bark
 
 // Camera / debug views
 uniform vec3 uCameraPos;
@@ -133,33 +133,71 @@ float fbm21(vec2 p) {
 }
 
 vec3 proceduralAlbedo(vec3 baseLin) {
-    if (uMaterial == 1) { // grass lawn
-        float n = fbm21(vWorldPos.xz * 1.8);
-        float blades = fbm21(vWorldPos.xz * 12.0);
-        vec3 dark = baseLin * 0.55;
-        vec3 light = baseLin * 1.25;
-        return mix(dark, light, n) * mix(0.85, 1.15, blades);
+    if (uMaterial == 1) { // grass lawn — patchy color + fine blades
+        float n = fbm21(vWorldPos.xz * 0.9);
+        float patches = fbm21(vWorldPos.xz * 0.25);
+        float blades = fbm21(vWorldPos.xz * 22.0);
+        vec3 soil = vec3(0.18, 0.14, 0.08);
+        vec3 lush = baseLin * vec3(0.85, 1.15, 0.75);
+        vec3 dry = baseLin * vec3(1.15, 1.05, 0.7);
+        vec3 col = mix(lush, dry, smoothstep(0.35, 0.7, patches));
+        col = mix(col, soil, smoothstep(0.62, 0.85, n) * 0.35);
+        return col * mix(0.78, 1.22, blades);
     }
-    if (uMaterial == 2) { // gravel
-        float n = fbm21(vWorldPos.xz * 8.0);
-        float peb = step(0.62, noise21(vWorldPos.xz * 28.0));
-        return baseLin * mix(0.7, 1.2, n) * mix(1.0, 0.75, peb);
+    if (uMaterial == 2) { // gravel — multi-size pebbles
+        float n = fbm21(vWorldPos.xz * 6.0);
+        float peb = noise21(vWorldPos.xz * 32.0);
+        float peb2 = noise21(vWorldPos.xz * 54.0 + 3.1);
+        vec3 light = baseLin * 1.35;
+        vec3 dark = baseLin * 0.55;
+        vec3 mid = mix(dark, light, n);
+        mid = mix(mid, mid * 0.65, step(0.72, peb));
+        mid = mix(mid, light * 1.1, step(0.85, peb2) * 0.5);
+        return mid;
     }
     if (uMaterial == 3) { // leafy hedge
-        float n = fbm21(vWorldPos.xz * 4.0 + vWorldPos.y * 3.0);
-        float leaf = fbm21(vWorldPos.xy * 18.0 + vWorldPos.z * 18.0);
-        return baseLin * mix(0.65, 1.35, n) * mix(0.9, 1.2, leaf);
+        float n = fbm21(vWorldPos.xz * 3.5 + vWorldPos.y * 2.8);
+        float leaf = fbm21(vWorldPos.xy * 22.0 + vWorldPos.z * 22.0);
+        vec3 tip = baseLin * vec3(1.2, 1.35, 0.9);
+        vec3 deep = baseLin * 0.45;
+        return mix(deep, tip, n) * mix(0.85, 1.25, leaf);
     }
-    if (uMaterial == 4) { // sand
-        float n = fbm21(vWorldPos.xz * 2.5);
-        float rip = sin(vWorldPos.x * 3.5 + n * 4.0) * 0.5 + 0.5;
-        vec3 wet = baseLin * vec3(0.55, 0.5, 0.42);
-        return mix(baseLin * mix(0.85, 1.15, n), wet, smoothstep(0.3, -0.2, vWorldPos.y) * 0.65)
-             * mix(0.95, 1.08, rip);
+    if (uMaterial == 4) { // sand — dunes, ripples, wet shore
+        float n = fbm21(vWorldPos.xz * 1.4);
+        float fine = fbm21(vWorldPos.xz * 9.0);
+        float rip = sin(vWorldPos.x * 4.5 + n * 6.0 + vWorldPos.z * 0.8) * 0.5 + 0.5;
+        vec3 dry = baseLin * mix(0.88, 1.18, fine);
+        vec3 warm = baseLin * vec3(1.12, 0.95, 0.72);
+        vec3 wet = baseLin * vec3(0.42, 0.38, 0.32);
+        float wetness = smoothstep(0.55, -0.05, vWorldPos.y);
+        vec3 col = mix(dry, warm, n * 0.45);
+        col = mix(col, wet, wetness * 0.85);
+        return col * mix(0.92, 1.12, rip);
     }
-    if (uMaterial == 5) { // stone
-        float n = fbm21(vWorldPos.xz * 3.0 + vWorldPos.y * 3.0);
-        return baseLin * mix(0.75, 1.2, n);
+    if (uMaterial == 5) { // stone / masonry
+        float n = fbm21(vWorldPos.xz * 2.2 + vWorldPos.y * 2.2);
+        // Fake mortar lines on large faces.
+        vec2 brick = fract(vec2(vWorldPos.x + vWorldPos.z * 0.15, vWorldPos.y) * vec2(0.55, 0.85));
+        float mortar = step(0.92, brick.x) + step(0.90, brick.y);
+        vec3 col = baseLin * mix(0.7, 1.25, n);
+        return mix(col, col * 0.55, clamp(mortar, 0.0, 1.0) * 0.65);
+    }
+    if (uMaterial == 7) { // wood grain
+        float g = fbm21(vec2(vWorldPos.x * 0.8 + vWorldPos.z * 0.8, vWorldPos.y * 6.0));
+        float rings = abs(sin(vWorldPos.y * 18.0 + g * 4.0));
+        vec3 light = baseLin * 1.25;
+        vec3 dark = baseLin * 0.55;
+        return mix(dark, light, rings) * mix(0.9, 1.1, g);
+    }
+    if (uMaterial == 8) { // stucco / plaster walls
+        float n = fbm21(vWorldPos.xz * 4.0 + vWorldPos.y * 4.0);
+        float speck = step(0.82, noise21(vWorldPos.xy * 30.0 + vWorldPos.z * 30.0));
+        return baseLin * mix(0.88, 1.12, n) * mix(1.0, 0.82, speck);
+    }
+    if (uMaterial == 9) { // bark
+        float vert = fbm21(vec2(vWorldPos.x * 8.0 + vWorldPos.z * 8.0, vWorldPos.y * 1.2));
+        float crack = step(0.78, noise21(vec2(vWorldPos.y * 3.0, atan(vWorldPos.z, vWorldPos.x) * 4.0)));
+        return baseLin * mix(0.55, 1.3, vert) * mix(1.0, 0.65, crack);
     }
     return baseLin;
 }
@@ -175,11 +213,15 @@ void main() {
 
     vec3 N = normalize(vNormal);
     if (!gl_FrontFacing) N = -N;   // two-sided shading for the open depth surface
-    // Cheap procedural normal detail for terrain-like materials.
-    if (uMaterial == 1 || uMaterial == 4 || uMaterial == 2) {
-        float nx = fbm21(vWorldPos.xz * 3.0) - 0.5;
-        float nz = fbm21(vWorldPos.xz * 3.0 + 9.1) - 0.5;
-        N = normalize(N + vec3(nx, 0.0, nz) * 0.35);
+    // Procedural normal detail — stronger on terrain, subtler on props.
+    if (uMaterial == 1 || uMaterial == 4 || uMaterial == 2 || uMaterial == 5 ||
+        uMaterial == 7 || uMaterial == 8 || uMaterial == 9 || uMaterial == 3) {
+        float scale = (uMaterial == 4 || uMaterial == 1) ? 4.5 : 2.8;
+        float strength = (uMaterial == 4) ? 0.55 : ((uMaterial == 1) ? 0.4 : 0.28);
+        float nx = fbm21(vWorldPos.xz * scale + vWorldPos.y * 0.5) - 0.5;
+        float nz = fbm21(vWorldPos.xz * scale + 9.1) - 0.5;
+        float ny = fbm21(vWorldPos.xy * scale + 2.3) - 0.5;
+        N = normalize(N + vec3(nx, ny * 0.35, nz) * strength);
     }
 
     if (uViewMode == 2) {          // normals

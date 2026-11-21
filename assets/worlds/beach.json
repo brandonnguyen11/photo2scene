@@ -5,9 +5,9 @@
   "terrain": {
     "type": "beach",
     "size": 160,
-    "resolution": 192,
-    "maxHeight": 6,
-    "baseColor": [0.76, 0.68, 0.48]
+    "resolution": 256,
+    "maxHeight": 7.5,
+    "baseColor": [0.78, 0.68, 0.48]
   },
   "lighting": {
     "timeOfDay": 16.5,

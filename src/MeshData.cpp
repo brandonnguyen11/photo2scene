@@ -223,3 +223,69 @@ MeshData makeGridMesh(float size, int resolution) {
     m.computeBounds();
     return m;
 }
+
+MeshData makeRockMesh(float radius, int slices, int stacks, float seed) {
+    MeshData m = makeSphereMesh(radius, slices, stacks);
+    for (size_t i = 0; i < m.vertices.size(); ++i) {
+        Vertex& v = m.vertices[i];
+        const float n = std::sin(v.position.x * (4.1f + seed) + v.position.y * 5.3f +
+                                 v.position.z * (3.7f + seed * 0.5f));
+        const float n2 = std::sin(v.position.y * 7.0f + seed * 2.0f);
+        const float k = 1.0f + 0.28f * n + 0.12f * n2;
+        v.position *= k;
+        // Flatten the bottom a bit so rocks sit on ground.
+        if (v.position.y < -radius * 0.35f) v.position.y *= 0.55f;
+    }
+    m.computeNormals();
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeTaperedTrunk(float baseRadius, float topRadius, float height, int segments) {
+    MeshData m;
+    segments = std::max(segments, 6);
+    const int rings = 8;
+    for (int y = 0; y <= rings; ++y) {
+        const float t = static_cast<float>(y) / rings;
+        const float yy = t * height;
+        const float r = glm::mix(baseRadius, topRadius, t);
+        // Slight lean noise baked into radius.
+        for (int i = 0; i <= segments; ++i) {
+            const float a = static_cast<float>(i) / segments * 6.2831853f;
+            const float c = std::cos(a), s = std::sin(a);
+            const glm::vec3 n = glm::normalize(glm::vec3(c, (baseRadius - topRadius) / height, s));
+            m.vertices.push_back({{c * r, yy, s * r}, n, {static_cast<float>(i) / segments, t}});
+        }
+    }
+    for (int y = 0; y < rings; ++y) {
+        for (int i = 0; i < segments; ++i) {
+            const uint32_t i0 = static_cast<uint32_t>(y * (segments + 1) + i);
+            const uint32_t i1 = i0 + static_cast<uint32_t>(segments + 1);
+            m.indices.insert(m.indices.end(), {i0, i1, i0 + 1, i0 + 1, i1, i1 + 1});
+        }
+    }
+    m.computeNormals();
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeFrondMesh(float length, float width) {
+    MeshData m;
+    const int segs = 8;
+    for (int i = 0; i <= segs; ++i) {
+        const float t = static_cast<float>(i) / segs;
+        const float x = t * length;
+        // Droop toward the tip.
+        const float y = -t * t * length * 0.35f;
+        const float w = width * (1.0f - t * 0.85f);
+        m.vertices.push_back({{x, y, -w}, {0, 1, 0}, {0, t}});
+        m.vertices.push_back({{x, y, w}, {0, 1, 0}, {1, t}});
+    }
+    for (int i = 0; i < segs; ++i) {
+        const uint32_t b = static_cast<uint32_t>(i * 2);
+        m.indices.insert(m.indices.end(), {b, b + 1, b + 2, b + 2, b + 1, b + 3});
+    }
+    m.computeNormals();
+    m.computeBounds();
+    return m;
+}

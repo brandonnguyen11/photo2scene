@@ -32,6 +32,10 @@ float fbm(float x, float z, int octaves) {
     return sum / std::max(norm, 1e-5f);
 }
 
+float ridged(float x, float z) {
+    return 1.0f - std::abs(fbm(x, z, 4) * 2.0f - 1.0f);
+}
+
 }  // namespace
 
 bool Terrain::build(const TerrainDesc& desc) {
@@ -50,16 +54,34 @@ bool Terrain::build(const TerrainDesc& desc) {
             float h = 0.0f;
 
             if (desc.type == "beach") {
-                // Slope toward −Z into the ocean; gentle dunes inland.
-                const float shore = std::clamp((-wz + 8.0f) / 55.0f, 0.0f, 1.0f);
-                h = shore * shore * desc.maxHeight * 0.55f;
-                h += (fbm(wx * 0.04f, wz * 0.04f, 4) - 0.5f) * 1.4f * shore;
-                if (wz < -12.0f) h = std::min(h, -0.4f);  // underwater shelf
+                // Rising inland (+Z), dropping into the ocean (−Z) with dunes & ripples.
+                const float inland = std::clamp((wz + 25.0f) / 70.0f, 0.0f, 1.0f);
+                const float ocean = std::clamp((-wz - 5.0f) / 40.0f, 0.0f, 1.0f);
+
+                // Broad dune ridges parallel to the shore.
+                const float dunes =
+                    ridged(wx * 0.035f + 2.0f, wz * 0.08f) * inland * desc.maxHeight * 0.85f;
+                const float mounds =
+                    (fbm(wx * 0.06f, wz * 0.06f, 5) - 0.35f) * inland * desc.maxHeight * 0.55f;
+                const float ripples =
+                    std::sin(wx * 2.8f + fbm(wx * 0.2f, wz * 0.2f, 2) * 3.0f) * 0.08f * inland;
+
+                h = inland * inland * 1.2f + dunes + mounds + ripples;
+                // Underwater shelf slopes gently down.
+                h -= ocean * ocean * 2.8f;
+                if (wz < -8.0f) h = std::min(h, -0.15f - ocean * 1.5f);
             } else if (desc.type == "hills") {
-                h = fbm(wx * 0.02f + 3.1f, wz * 0.02f + 1.7f, 5) * desc.maxHeight;
+                h = fbm(wx * 0.018f + 3.1f, wz * 0.018f + 1.7f, 6) * desc.maxHeight;
+                h += ridged(wx * 0.04f, wz * 0.04f) * desc.maxHeight * 0.25f;
             } else {
-                // Formal garden: almost flat with tiny undulation so lighting isn't boring.
-                h = (fbm(wx * 0.05f, wz * 0.05f, 3) - 0.5f) * 0.35f;
+                // Formal garden: gentle bowl + lawn undulation; paths sit slightly lower.
+                const float lawn = (fbm(wx * 0.04f, wz * 0.04f, 4) - 0.5f) * 0.55f;
+                const float edgeRise =
+                    std::pow(std::max(std::abs(wx), std::abs(wz)) / half_, 2.5f) * 1.8f;
+                // Soft depression along the main axes (where gravel paths go).
+                const float pathX = std::exp(-std::pow(wx / 3.6f, 2.0f)) * 0.18f;
+                const float pathZ = std::exp(-std::pow(wz / 3.6f, 2.0f)) * 0.12f;
+                h = lawn + edgeRise - pathX - pathZ;
             }
 
             heights_[static_cast<size_t>(z) * res_ + x] = h;
@@ -70,6 +92,8 @@ bool Terrain::build(const TerrainDesc& desc) {
     mesh_.indices.clear();
     mesh_.vertices.reserve(static_cast<size_t>(res_) * res_);
 
+    // Tighter UVs so procedural shaders get more frequency on the ground.
+    const float uvScale = desc.size / 4.5f;
     for (int z = 0; z < res_; ++z) {
         for (int x = 0; x < res_; ++x) {
             const float u = static_cast<float>(x) / (res_ - 1);
@@ -79,7 +103,7 @@ bool Terrain::build(const TerrainDesc& desc) {
             const float wy = heights_[static_cast<size_t>(z) * res_ + x];
             Vertex vert;
             vert.position = {wx, wy, wz};
-            vert.uv = {u * (desc.size / 8.0f), v * (desc.size / 8.0f)};
+            vert.uv = {u * uvScale, v * uvScale};
             vert.normal = {0, 1, 0};
             mesh_.vertices.push_back(vert);
         }
@@ -143,13 +167,18 @@ MeshData makeBackdropRing(float innerRadius, float outerRadius, float height, in
         const float t = static_cast<float>(i) / segments;
         const float a = t * 6.2831853f;
         const float c = std::cos(a), s = std::sin(a);
-        const float hNoise = seaHorizon ? 0.4f : (0.55f + 0.45f * std::sin(a * 3.0f + 0.4f));
-        Vertex inner{{c * innerRadius, 0.0f, s * innerRadius}, {0, 1, 0}, {t * 8.0f, 0.0f}};
+        const float hNoise =
+            seaHorizon ? 0.15f
+                       : (0.45f + 0.55f * (0.5f + 0.5f * std::sin(a * 2.5f + 0.4f)) *
+                                      (0.5f + 0.5f * std::sin(a * 5.0f)));
+        Vertex inner{{c * innerRadius, seaHorizon ? -1.0f : 0.0f, s * innerRadius},
+                     {0, 1, 0},
+                     {t * 8.0f, 0.0f}};
         Vertex outer{{c * outerRadius, height * hNoise, s * outerRadius},
-                     {-c, 0.2f, -s},
+                     {-c, 0.25f, -s},
                      {t * 8.0f, 1.0f}};
         if (seaHorizon) {
-            outer.position.y = -0.5f;
+            outer.position.y = -0.8f;
             outer.normal = {0, 1, 0};
         }
         m.vertices.push_back(inner);

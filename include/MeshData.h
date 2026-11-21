@@ -43,3 +43,9 @@ MeshData makeSphereMesh(float radius, int slices = 16, int stacks = 12);
 MeshData makeGrassBladeMesh();
 // Flat water grid on XZ, centered at origin.
 MeshData makeGridMesh(float size, int resolution);
+// Irregular boulder (noisy sphere).
+MeshData makeRockMesh(float radius, int slices = 14, int stacks = 10, float seed = 1.0f);
+// Tapered trunk from baseRadius to topRadius.
+MeshData makeTaperedTrunk(float baseRadius, float topRadius, float height, int segments = 10);
+// Broad leaf / palm frond as a bent strip.
+MeshData makeFrondMesh(float length, float width);

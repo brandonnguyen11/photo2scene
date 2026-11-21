@@ -25,7 +25,10 @@ enum class WorldMaterial : int {
     Hedge = 3,
     Sand = 4,
     Stone = 5,
-    Water = 6
+    Water = 6,
+    Wood = 7,
+    Stucco = 8,
+    Bark = 9
 };
 
 struct WorldObject {
@@ -56,6 +59,7 @@ struct WorldDesc {
     glm::vec3 waterCenter{0.0f};
     float waterSize = 80.0f;
     float waterLevel = 0.0f;
+    float waterWaveScale = 1.0f;  // calm pools use ~0.12
     int grassCount = 60000;
 };
 

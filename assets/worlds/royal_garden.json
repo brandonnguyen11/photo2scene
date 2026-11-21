@@ -5,16 +5,16 @@
   "terrain": {
     "type": "flat",
     "size": 160,
-    "resolution": 160,
+    "resolution": 220,
     "maxHeight": 2,
-    "baseColor": [0.30, 0.46, 0.20]
+    "baseColor": [0.28, 0.48, 0.20]
   },
   "lighting": {
     "timeOfDay": 16.0,
     "latitude": 48.8,
     "turbidity": 2.4,
     "wind": 0.5,
-    "fog": 0.005,
+    "fog": 0.003,
     "cloudCover": 0.35
   },
   "grassCount": 70000,

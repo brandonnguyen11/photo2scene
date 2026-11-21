@@ -272,6 +272,7 @@ void Renderer::renderWorld(const World& world, const Scene* photoScene, const Ca
         waterShader_.setMat4("uView", view);
         waterShader_.setMat4("uProj", proj);
         waterShader_.setFloat("uTime", timeSeconds);
+        waterShader_.setFloat("uWaveScale", world.desc().waterWaveScale);
         waterShader_.setVec3("uCameraPos", eye);
         waterShader_.setVec3("uSunDir", ls.sun.direction());
         waterShader_.setVec3("uSunColor", srgbToLinear(ls.sun.color) * ls.sun.intensity);

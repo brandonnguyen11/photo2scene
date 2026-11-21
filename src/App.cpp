@@ -327,10 +327,11 @@ void App::frameWorldView() {
         dist = 20.0f;
         pitch = glm::radians(6.0f);
     } else {
-        target = {0.0f, 1.7f, -8.0f};
-        dist = 26.0f;
-        yaw = glm::radians(15.0f);  // face the palace / fountain axis
-        pitch = glm::radians(6.0f);
+        // yaw=180 puts the eye on −Z looking toward +Z (palace / fountain axis).
+        target = {0.0f, 1.8f, 6.0f};
+        dist = 28.0f;
+        yaw = glm::radians(180.0f);
+        pitch = glm::radians(7.0f);
     }
     target.y = world_.terrain().heightAt(target.x, target.z) + 1.6f;
     camera_.setHome(target, dist, yaw, pitch, 55.0f);

@@ -8,6 +8,7 @@ uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProj;
 uniform float uTime;
+uniform float uWaveScale;  // 1 = ocean, ~0.15 = calm fountain
 
 out vec3 vWorldPos;
 out vec3 vNormal;
@@ -31,17 +32,19 @@ void gerstner(vec3 pos, float t, out vec3 displaced, out vec3 normal) {
 
     vec3 p = pos;
     vec3 n = vec3(0.0, 1.0, 0.0);
+    float ampScale = max(uWaveScale, 0.02);
     for (int i = 0; i < 5; ++i) {
+        float amp = waves[i].amplitude * ampScale;
         float w = 6.2831853 / waves[i].wavelength;
         float phase = w * dot(waves[i].dir, pos.xz) - waves[i].speed * t;
         float qa = 0.55; // steepness factor
-        p.x += qa * waves[i].amplitude * waves[i].dir.x * cos(phase);
-        p.z += qa * waves[i].amplitude * waves[i].dir.y * cos(phase);
-        p.y += waves[i].amplitude * sin(phase);
+        p.x += qa * amp * waves[i].dir.x * cos(phase);
+        p.z += qa * amp * waves[i].dir.y * cos(phase);
+        p.y += amp * sin(phase);
 
-        n.x -= waves[i].dir.x * w * waves[i].amplitude * cos(phase);
-        n.z -= waves[i].dir.y * w * waves[i].amplitude * cos(phase);
-        n.y -= qa * w * waves[i].amplitude * sin(phase);
+        n.x -= waves[i].dir.x * w * amp * cos(phase);
+        n.z -= waves[i].dir.y * w * amp * cos(phase);
+        n.y -= qa * w * amp * sin(phase);
     }
     displaced = p;
     normal = normalize(n);
