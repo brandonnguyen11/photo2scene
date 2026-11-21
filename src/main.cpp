@@ -25,6 +25,7 @@ int main(int argc, char** argv) {
         if (arg == "--image") options.imagePath = next();
         else if (arg == "--depth") options.depthPath = next();
         else if (arg == "--screenshot") options.screenshotPath = next();
+        else if (arg == "--world") options.worldId = next();
         else if (arg == "--dummy") options.dummyDepth = true;
         else if (arg == "--export") options.exportOriginalView = true;
         else if (arg == "--yaw") options.yawDeg = std::stof(next());

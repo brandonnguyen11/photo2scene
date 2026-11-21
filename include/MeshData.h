@@ -31,3 +31,15 @@ struct MeshData {
 MeshData makePlaneMesh();
 // Axis-aligned cube centered at the origin with flat normals.
 MeshData makeCubeMesh(float halfSize);
+// Box from min to max corner (axis-aligned).
+MeshData makeBoxMesh(const glm::vec3& minCorner, const glm::vec3& maxCorner);
+// Vertical cylinder (Y-up), centered on origin.
+MeshData makeCylinderMesh(float radius, float height, int segments = 16);
+// Cone pointing +Y, base on XZ at y=0, tip at y=height.
+MeshData makeConeMesh(float radius, float height, int segments = 16);
+// UV sphere centered at origin.
+MeshData makeSphereMesh(float radius, int slices = 16, int stacks = 12);
+// Single grass blade in XY plane (thin strip), base at origin.
+MeshData makeGrassBladeMesh();
+// Flat water grid on XZ, centered at origin.
+MeshData makeGridMesh(float size, int resolution);

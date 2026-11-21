@@ -1,0 +1,24 @@
+{
+  "id": "forest",
+  "name": "Forest Clearing",
+  "builder": "forest",
+  "terrain": {
+    "type": "hills",
+    "size": 140,
+    "resolution": 160,
+    "maxHeight": 5,
+    "baseColor": [0.22, 0.36, 0.16]
+  },
+  "lighting": {
+    "timeOfDay": 9.0,
+    "latitude": 45.0,
+    "turbidity": 2.4,
+    "wind": 0.35,
+    "fog": 0.02,
+    "cloudCover": 0.4
+  },
+  "grassCount": 80000,
+  "photoSpots": [
+    { "name": "Clearing", "position": [0.0, 0.0, 0.0], "facingYawDeg": 0.0 }
+  ]
+}

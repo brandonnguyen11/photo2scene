@@ -16,7 +16,7 @@ public:
     float pitch = 0.0f;  // radians, clamped to avoid gimbal flip
     float fovYDeg = 50.0f;
     float nearPlane = 0.01f;
-    float farPlane = 200.0f;
+    float farPlane = 500.0f;
 
     glm::vec3 position() const;
     glm::vec3 forward() const;

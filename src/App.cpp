@@ -160,13 +160,21 @@ bool App::init(const AppOptions& options) {
     }
     scene_.init();
     lighting_.resetDefaults();
+    // Immersive worlds use the analytic sun; keep fill lights off by default.
+    for (auto& p : lighting_.settings.points) p.enabled = false;
 
     depthEstimator_.config.pythonExe = defaultPythonExecutable(paths_.root.u8string());
     depthEstimator_.config.scriptPath = paths_.aiScript.u8string();
     depthEstimator_.config.outputDir = paths_.cacheDir.u8string();
     depthEstimator_.config.dummy = options.dummyDepth;
 
-    loadDemoScene();
+    if (!options.worldId.empty()) currentWorldId_ = options.worldId;
+    if (!loadWorld(currentWorldId_)) {
+        std::fprintf(stderr, "Falling back to v1 demo scene.\n");
+        immersiveMode_ = false;
+        loadDemoScene();
+    }
+    if (!options.screenshotPath.empty()) showUI_ = false;
 
     if (!options.imagePath.empty()) {
         if (!options.depthPath.empty()) autoEstimate_ = false;
@@ -180,6 +188,7 @@ void App::shutdown() {
     photoTexture_.destroy();
     originalPreview_.destroy();
     depthPreview_.destroy();
+    world_.shutdown();
     scene_.shutdown();
     renderer_.shutdown();
     if (window_) {
@@ -211,6 +220,7 @@ void App::run() {
         last = now;
 
         pollDepthJob();
+        world_.update(static_cast<float>(now), dt);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -226,7 +236,13 @@ void App::run() {
         RenderTarget target;
         target.width = fbW;
         target.height = fbH;
-        renderer_.render(scene_, camera_, lighting_, target);
+        renderer_.settings.showPhotoMesh = showPhotoInWorld_;
+        if (immersiveMode_) {
+            renderer_.renderWorld(world_, &scene_, camera_, lighting_, static_cast<float>(now),
+                                  target);
+        } else {
+            renderer_.render(scene_, camera_, lighting_, target);
+        }
 
         if (screenshotRequested_) {  // scene only, without UI
             screenshotRequested_ = false;
@@ -238,7 +254,9 @@ void App::run() {
 
         // Smoke-test mode: wait for any depth job, render a few frames, save, quit.
         if (!options_.screenshotPath.empty() && !depthEstimator_.busy()) {
-            if (smokeFrames == 0) {
+            if (smokeFrames == 0 && (!immersiveMode_ || options_.yawDeg != 0.0f ||
+                                    options_.pitchDeg != 0.0f)) {
+                // Only override orbit when explicitly requested (keeps world framing).
                 camera_.yaw = glm::radians(options_.yawDeg);
                 camera_.pitch = glm::radians(options_.pitchDeg);
             }
@@ -274,6 +292,51 @@ void App::loadDemoScene() {
     photoTexture_.create(photo_);
     applyDepth(std::move(depth));
     setStatus(StatusLevel::Info, "Demo scene loaded. Drop a photo onto the window to begin.");
+}
+
+bool App::loadWorld(const std::string& worldId) {
+    const fs::path path = paths_.root / "assets" / "worlds" / (worldId + ".json");
+    std::string error;
+    if (!world_.loadFromFile(path.u8string(), &error)) {
+        setStatus(StatusLevel::Error, error);
+        return false;
+    }
+    currentWorldId_ = worldId;
+    immersiveMode_ = true;
+    scene_.showGround = false;  // world provides terrain
+    lighting_.settings.specularStrength = 0.12f;
+    for (auto& p : lighting_.settings.points) p.enabled = false;
+    frameWorldView();
+    setStatus(StatusLevel::Success, "Loaded world: " + world_.desc().name);
+    return true;
+}
+
+void App::frameWorldView() {
+    // Eye-level-ish view with enough sky in frame for the analytic atmosphere.
+    glm::vec3 target(0.0f, 1.5f, 0.0f);
+    float dist = 24.0f;
+    float yaw = glm::radians(-28.0f);
+    float pitch = glm::radians(8.0f);
+    if (currentWorldId_ == "beach") {
+        target = {2.0f, 1.4f, -4.0f};
+        dist = 22.0f;
+        yaw = glm::radians(200.0f);  // look toward the ocean (−Z)
+        pitch = glm::radians(4.0f);
+    } else if (currentWorldId_ == "forest") {
+        target = {0.0f, 1.5f, 2.0f};
+        dist = 20.0f;
+        pitch = glm::radians(6.0f);
+    } else {
+        target = {0.0f, 1.7f, -8.0f};
+        dist = 26.0f;
+        yaw = glm::radians(15.0f);  // face the palace / fountain axis
+        pitch = glm::radians(6.0f);
+    }
+    target.y = world_.terrain().heightAt(target.x, target.z) + 1.6f;
+    camera_.setHome(target, dist, yaw, pitch, 55.0f);
+    camera_.farPlane = 600.0f;
+    camera_.nearPlane = 0.08f;
+    camera_.reset();
 }
 
 bool App::loadImage(const std::string& path) {
@@ -422,15 +485,21 @@ void App::frameOriginalView() {
 void App::resetAll() {
     recon_ = ReconstructionSettings{};
     lighting_.resetDefaults();
+    for (auto& p : lighting_.settings.points) p.enabled = false;
     renderer_.settings = RenderSettings{};
     scene_.setEnvironment(0);
-    scene_.showGround = true;
     scene_.showSky = true;
-    if (!depth_.empty()) {
-        rebuildMesh();
-        lighting_.placePointLights(scene_.center(), scene_.radius());
+    if (immersiveMode_) {
+        scene_.showGround = false;
+        loadWorld(currentWorldId_);
+    } else {
+        scene_.showGround = true;
+        if (!depth_.empty()) {
+            rebuildMesh();
+            lighting_.placePointLights(scene_.center(), scene_.radius());
+        }
+        frameOriginalView();
     }
-    frameOriginalView();
     setStatus(StatusLevel::Info, "All settings reset to defaults.");
 }
 

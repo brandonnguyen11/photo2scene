@@ -12,6 +12,7 @@
 #include "Renderer.h"
 #include "Scene.h"
 #include "Texture.h"
+#include "World.h"
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
@@ -36,6 +37,7 @@ struct AppOptions {
     std::string imagePath;       // optional image to load on start
     std::string depthPath;       // optional precomputed depth map
     std::string screenshotPath;  // if set: render a few frames, save, exit (CI / smoke test)
+    std::string worldId;         // royal_garden | beach | forest
     bool dummyDepth = false;     // use synthetic depth instead of the model
     float yawDeg = 0.0f;         // initial camera orbit (for --screenshot comparisons)
     float pitchDeg = 0.0f;
@@ -53,6 +55,8 @@ public:
 private:
     // ---- Pipeline ----
     void loadDemoScene();
+    bool loadWorld(const std::string& worldId);
+    void frameWorldView();
     bool loadImage(const std::string& path);
     void startDepthEstimation();
     void pollDepthJob();
@@ -73,6 +77,7 @@ private:
     void drawCameraSection();
     void drawLightingSection();
     void drawEnvironmentSection();
+    void drawWorldSection();
     void drawPerformanceSection();
 
     // ---- Tools (experiments) ----
@@ -88,9 +93,13 @@ private:
 
     Camera camera_;
     Scene scene_;
+    World world_;
     Renderer renderer_;
     LightingSystem lighting_;
     DepthEstimator depthEstimator_;
+    bool immersiveMode_ = true;
+    std::string currentWorldId_ = "royal_garden";
+    bool showPhotoInWorld_ = false;
 
     // Inputs
     std::string photoName_ = "demo";

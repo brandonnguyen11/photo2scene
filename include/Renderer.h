@@ -1,15 +1,12 @@
 #pragma once
-// Renderer.h — multi-pass OpenGL renderer (Member 1: Graphics Engine)
-//
-// Pass 1: shadow map (depth from the directional light)
-// Pass 2: sky gradient (full-screen triangle)
-// Pass 3: lit scene (reconstruction + ground)
-// Pass 4: unlit overlays (point-light gizmos)
+// Renderer.h — multi-pass OpenGL renderer (world + optional v1 reconstruction)
 
 #include "Camera.h"
 #include "Lighting.h"
 #include "Scene.h"
 #include "Shader.h"
+#include "Sky.h"
+#include "World.h"
 
 #include <glad/gl.h>
 
@@ -20,18 +17,18 @@ enum class ViewMode : int { Lit = 0, Unlit = 1, Normals = 2, Depth = 3 };
 struct RenderSettings {
     ViewMode viewMode = ViewMode::Lit;
     bool wireframe = false;
-    bool showLightGizmos = true;
+    bool showLightGizmos = false;
+    bool showPhotoMesh = true;
 };
 
 struct RenderTarget {
-    GLuint framebuffer = 0;  // 0 = default framebuffer (the window)
+    GLuint framebuffer = 0;
     int width = 1;
     int height = 1;
-    bool overlays = true;    // draw gizmos
+    bool overlays = true;
     bool measureGpuTime = true;
 };
 
-// Double-buffered GL_TIME_ELAPSED queries so reading results never stalls.
 class GpuTimer {
 public:
     void init();
@@ -54,6 +51,11 @@ public:
     bool reloadShaders(std::string* error);
     void shutdown();
 
+    // Immersive world path (v2). photoScene is optional (A-7 fallback mesh).
+    void renderWorld(const World& world, const Scene* photoScene, const Camera& camera,
+                     LightingSystem& lighting, float timeSeconds, const RenderTarget& target);
+
+    // Legacy v1-only path.
     void render(const Scene& scene, const Camera& camera, LightingSystem& lighting,
                 const RenderTarget& target);
 
@@ -62,12 +64,19 @@ public:
 
 private:
     bool loadShaders(std::string* error);
+    void drawSky(const SkyState& sky, const Camera& camera, const glm::mat4& invViewProj,
+                 float timeSeconds);
+    void drawSceneObject(const Shader& shader, const glm::mat4& model, const glm::vec3& baseColor,
+                         GLuint texture, bool checker, const Mesh& mesh, int material = 0);
 
     std::string shaderDir_;
     Shader sceneShader_;
     Shader shadowShader_;
     Shader skyShader_;
     Shader unlitShader_;
+    Shader grassShader_;
+    Shader waterShader_;
     GLuint emptyVao_ = 0;
+    GLuint whiteTex_ = 0;
     GpuTimer gpuTimer_;
 };

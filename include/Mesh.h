@@ -20,16 +20,22 @@ public:
 
     bool upload(const MeshData& data);
     void draw() const;
+    // Draws with instance attributes at locations 3.. (vec4 posScale, float yaw, float phase).
+    void setInstances(const void* data, size_t strideBytes, size_t count);
+    void drawInstanced() const;
     void destroy();
 
     bool valid() const { return vao_ != 0 && indexCount_ > 0; }
     GLsizei indexCount() const { return indexCount_; }
+    GLsizei instanceCount() const { return instanceCount_; }
     size_t gpuBytes() const { return gpuBytes_; }
 
 private:
     GLuint vao_ = 0;
     GLuint vbo_ = 0;
     GLuint ebo_ = 0;
+    GLuint instanceVbo_ = 0;
     GLsizei indexCount_ = 0;
+    GLsizei instanceCount_ = 0;
     size_t gpuBytes_ = 0;
 };

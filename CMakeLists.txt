@@ -48,6 +48,10 @@ target_include_directories(glad PUBLIC external/glad/include)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE external/stb)
 
+# nlohmann/json (single header under external/nlohmann)
+add_library(nlohmann_json INTERFACE)
+target_include_directories(nlohmann_json INTERFACE external)
+
 # Dear ImGui (no CMake of its own)
 add_library(imgui_lib STATIC
   ${imgui_SOURCE_DIR}/imgui.cpp
@@ -67,9 +71,11 @@ target_link_libraries(imgui_lib PUBLIC glfw OpenGL::GL ${CMAKE_DL_LIBS})
 add_library(p2s_core STATIC
   src/ImageLoader.cpp
   src/MeshData.cpp
-  src/Reconstruction.cpp)
+  src/Reconstruction.cpp
+  src/Sky.cpp
+  src/Terrain.cpp)
 target_include_directories(p2s_core PUBLIC include)
-target_link_libraries(p2s_core PUBLIC glm::glm stb)
+target_link_libraries(p2s_core PUBLIC glm::glm stb nlohmann_json)
 
 # ---------------------------------------------------------------------------
 # Application
@@ -85,8 +91,9 @@ add_executable(Photo2Scene
   src/Shader.cpp
   src/Scene.cpp
   src/Texture.cpp
-  src/DepthEstimator.cpp)
-target_link_libraries(Photo2Scene PRIVATE p2s_core glad glfw imgui_lib OpenGL::GL Threads::Threads)
+  src/DepthEstimator.cpp
+  src/World.cpp)
+target_link_libraries(Photo2Scene PRIVATE p2s_core glad glfw imgui_lib OpenGL::GL Threads::Threads nlohmann_json)
 target_compile_definitions(Photo2Scene PRIVATE P2S_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 if(MSVC)

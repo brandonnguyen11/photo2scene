@@ -24,6 +24,7 @@ uniform sampler2D uAlbedoTex;
 uniform bool uUseTexture;
 uniform vec3 uBaseColor;      // sRGB
 uniform bool uChecker;
+uniform int uMaterial;        // 0 plain, 1 grass, 2 gravel, 3 hedge, 4 sand, 5 stone, 6 water
 
 // Camera / debug views
 uniform vec3 uCameraPos;
@@ -57,6 +58,10 @@ uniform sampler2D uShadowMap;
 uniform bool uShadowsEnabled;
 uniform float uShadowBias;
 uniform int uPcfRadius;
+
+// Aerial perspective (S-5)
+uniform float uFogDensity;
+uniform vec3 uFogColor;
 
 vec3 srgbToLinear(vec3 c) {
     return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
@@ -110,9 +115,59 @@ vec3 shade(vec3 albedo, vec3 N, vec3 L, vec3 V, vec3 radiance) {
     return radiance * (albedo * ndl + spec);
 }
 
+float hash21(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float noise21(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash21(i), b = hash21(i + vec2(1, 0));
+    float c = hash21(i + vec2(0, 1)), d = hash21(i + vec2(1, 1));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float fbm21(vec2 p) {
+    float v = 0.0, a = 0.5;
+    for (int i = 0; i < 5; ++i) { v += a * noise21(p); p *= 2.03; a *= 0.5; }
+    return v;
+}
+
+vec3 proceduralAlbedo(vec3 baseLin) {
+    if (uMaterial == 1) { // grass lawn
+        float n = fbm21(vWorldPos.xz * 1.8);
+        float blades = fbm21(vWorldPos.xz * 12.0);
+        vec3 dark = baseLin * 0.55;
+        vec3 light = baseLin * 1.25;
+        return mix(dark, light, n) * mix(0.85, 1.15, blades);
+    }
+    if (uMaterial == 2) { // gravel
+        float n = fbm21(vWorldPos.xz * 8.0);
+        float peb = step(0.62, noise21(vWorldPos.xz * 28.0));
+        return baseLin * mix(0.7, 1.2, n) * mix(1.0, 0.75, peb);
+    }
+    if (uMaterial == 3) { // leafy hedge
+        float n = fbm21(vWorldPos.xz * 4.0 + vWorldPos.y * 3.0);
+        float leaf = fbm21(vWorldPos.xy * 18.0 + vWorldPos.z * 18.0);
+        return baseLin * mix(0.65, 1.35, n) * mix(0.9, 1.2, leaf);
+    }
+    if (uMaterial == 4) { // sand
+        float n = fbm21(vWorldPos.xz * 2.5);
+        float rip = sin(vWorldPos.x * 3.5 + n * 4.0) * 0.5 + 0.5;
+        vec3 wet = baseLin * vec3(0.55, 0.5, 0.42);
+        return mix(baseLin * mix(0.85, 1.15, n), wet, smoothstep(0.3, -0.2, vWorldPos.y) * 0.65)
+             * mix(0.95, 1.08, rip);
+    }
+    if (uMaterial == 5) { // stone
+        float n = fbm21(vWorldPos.xz * 3.0 + vWorldPos.y * 3.0);
+        return baseLin * mix(0.75, 1.2, n);
+    }
+    return baseLin;
+}
+
 void main() {
     vec3 albedo = uUseTexture ? srgbToLinear(texture(uAlbedoTex, vUV).rgb)
                               : srgbToLinear(uBaseColor);
+    albedo = proceduralAlbedo(albedo);
     if (uChecker) {
         vec2 cell = floor(vWorldPos.xz * 2.0);
         albedo *= mix(0.8, 1.0, mod(cell.x + cell.y, 2.0));
@@ -120,6 +175,12 @@ void main() {
 
     vec3 N = normalize(vNormal);
     if (!gl_FrontFacing) N = -N;   // two-sided shading for the open depth surface
+    // Cheap procedural normal detail for terrain-like materials.
+    if (uMaterial == 1 || uMaterial == 4 || uMaterial == 2) {
+        float nx = fbm21(vWorldPos.xz * 3.0) - 0.5;
+        float nz = fbm21(vWorldPos.xz * 3.0 + 9.1) - 0.5;
+        N = normalize(N + vec3(nx, 0.0, nz) * 0.35);
+    }
 
     if (uViewMode == 2) {          // normals
         FragColor = vec4(N * 0.5 + 0.5, 1.0);
@@ -153,6 +214,10 @@ void main() {
         float atten = 1.0 / max(a.x + a.y * d + a.z * d * d, 1e-4);
         color += atten * shade(albedo, N, L, V, uPoints[i].color);
     }
+
+    float dist = length(uCameraPos - vWorldPos);
+    float fog = 1.0 - exp(-uFogDensity * dist);
+    color = mix(color, srgbToLinear(uFogColor), clamp(fog, 0.0, 1.0));
 
     FragColor = vec4(linearToSrgb(color), 1.0);
 }

@@ -69,11 +69,12 @@ void App::drawControlPanel() {
     ImGui::PopStyleColor();
     ImGui::Separator();
 
-    if (ImGui::CollapsingHeader("1. Image", ImGuiTreeNodeFlags_DefaultOpen)) drawImageSection();
-    if (ImGui::CollapsingHeader("2. Reconstruction", ImGuiTreeNodeFlags_DefaultOpen))
-        drawReconstructionSection();
+    if (ImGui::CollapsingHeader("0. Immersive World", ImGuiTreeNodeFlags_DefaultOpen))
+        drawWorldSection();
+    if (ImGui::CollapsingHeader("1. Image")) drawImageSection();
+    if (ImGui::CollapsingHeader("2. Reconstruction")) drawReconstructionSection();
     if (ImGui::CollapsingHeader("3. Camera")) drawCameraSection();
-    if (ImGui::CollapsingHeader("4. Lighting", ImGuiTreeNodeFlags_DefaultOpen)) drawLightingSection();
+    if (ImGui::CollapsingHeader("4. Lighting")) drawLightingSection();
     if (ImGui::CollapsingHeader("5. Environment & View")) drawEnvironmentSection();
     if (ImGui::CollapsingHeader("6. Performance & Experiments")) drawPerformanceSection();
 
@@ -265,6 +266,55 @@ void App::drawLightingSection() {
     if (ImGui::Button("Reset lighting")) {
         lighting_.resetDefaults();
         lighting_.placePointLights(scene_.center(), scene_.radius());
+    }
+}
+
+void App::drawWorldSection() {
+    ImGui::Checkbox("Immersive world mode", &immersiveMode_);
+    helpMarker("v2 worlds with analytic sky, terrain, grass and water. Turn off for the v1 "
+               "photo-depth demo scene.");
+
+    static const char* kWorlds[] = {"royal_garden", "beach", "forest"};
+    static const char* kNames[] = {"Royal Garden", "Beach", "Forest"};
+    int idx = 0;
+    for (int i = 0; i < 3; ++i)
+        if (currentWorldId_ == kWorlds[i]) idx = i;
+    if (ImGui::Combo("World", &idx, kNames, 3)) loadWorld(kWorlds[idx]);
+
+    SkySettings& sky = world_.sky().settings;
+    ImGui::SeparatorText("Sky & sun");
+    ImGui::SliderFloat("Time of day", &sky.timeOfDayHours, 0.0f, 24.0f, "%.2f h");
+    ImGui::SliderFloat("Latitude", &sky.latitudeDeg, -60.0f, 60.0f, "%.1f deg");
+    ImGui::SliderFloat("Turbidity", &sky.turbidity, 1.8f, 8.0f, "%.2f");
+    ImGui::SliderFloat("Cloud cover", &sky.cloudCover, 0.0f, 1.0f);
+    ImGui::SliderFloat("Fog density", &sky.fogDensity, 0.0f, 0.06f, "%.4f");
+    ImGui::SliderFloat("Wind", &sky.windStrength, 0.0f, 1.5f);
+    ImGui::Checkbox("Auto-advance time", &sky.autoAdvance);
+    if (sky.autoAdvance)
+        ImGui::SliderFloat("Hours / sec", &sky.autoAdvanceSpeed, 0.02f, 1.0f);
+
+    const SkyState st = world_.sky().evaluate();
+    ImGui::TextDisabled("Sun elev %.1f deg  |  %s", Sky::sunElevationDeg(sky),
+                        st.isNight ? "night" : "day");
+
+    ImGui::SeparatorText("Placement");
+    ImGui::Checkbox("Show photo mesh in world", &showPhotoInWorld_);
+    if (ImGui::Button("Frame world view")) frameWorldView();
+    ImGui::SameLine();
+    if (ImGui::Button("Reload world JSON")) loadWorld(currentWorldId_);
+    helpMarker("Edit assets/worlds/*.json (e.g. lighting.timeOfDay) and reload — W-4.");
+
+    const auto& spots = world_.photoSpots();
+    if (!spots.empty() && ImGui::BeginCombo("Photo spot", spots.front().name.c_str())) {
+        for (const PhotoSpot& s : spots) {
+            if (ImGui::Selectable(s.name.c_str())) {
+                glm::vec3 t = s.position;
+                t.y = world_.terrain().heightAt(t.x, t.z) + 1.4f;
+                camera_.setHome(t, 18.0f, glm::radians(s.facingYawDeg), glm::radians(12.0f), 50.0f);
+                camera_.reset();
+            }
+        }
+        ImGui::EndCombo();
     }
 }
 

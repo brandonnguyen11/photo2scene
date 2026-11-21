@@ -2,6 +2,8 @@
 
 #include <glm/geometric.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <limits>
 
 void MeshData::computeBounds() {
@@ -70,6 +72,152 @@ MeshData makeCubeMesh(float h) {
             m.indices.insert(m.indices.end(), {base, base + 1, base + 2, base, base + 2, base + 3});
         } else {
             m.indices.insert(m.indices.end(), {base, base + 2, base + 1, base, base + 3, base + 2});
+        }
+    }
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeBoxMesh(const glm::vec3& minC, const glm::vec3& maxC) {
+    MeshData m;
+    const glm::vec3 c = (minC + maxC) * 0.5f;
+    const glm::vec3 h = (maxC - minC) * 0.5f;
+    MeshData unit = makeCubeMesh(1.0f);
+    for (Vertex& v : unit.vertices) {
+        v.position = c + v.position * h;
+    }
+    unit.computeBounds();
+    return unit;
+}
+
+MeshData makeCylinderMesh(float radius, float height, int segments) {
+    MeshData m;
+    segments = std::max(segments, 6);
+    const float half = height * 0.5f;
+    // Side
+    for (int i = 0; i <= segments; ++i) {
+        const float t = static_cast<float>(i) / segments;
+        const float a = t * 6.2831853f;
+        const float c = std::cos(a), s = std::sin(a);
+        const glm::vec3 n(c, 0, s);
+        m.vertices.push_back({{c * radius, -half, s * radius}, n, {t, 0}});
+        m.vertices.push_back({{c * radius, half, s * radius}, n, {t, 1}});
+    }
+    for (int i = 0; i < segments; ++i) {
+        const uint32_t b = static_cast<uint32_t>(i * 2);
+        m.indices.insert(m.indices.end(), {b, b + 1, b + 2, b + 2, b + 1, b + 3});
+    }
+    // Caps
+    const uint32_t botCenter = static_cast<uint32_t>(m.vertices.size());
+    m.vertices.push_back({{0, -half, 0}, {0, -1, 0}, {0.5f, 0.5f}});
+    const uint32_t topCenter = static_cast<uint32_t>(m.vertices.size());
+    m.vertices.push_back({{0, half, 0}, {0, 1, 0}, {0.5f, 0.5f}});
+    for (int i = 0; i < segments; ++i) {
+        const float a0 = static_cast<float>(i) / segments * 6.2831853f;
+        const float a1 = static_cast<float>(i + 1) / segments * 6.2831853f;
+        const uint32_t b0 = static_cast<uint32_t>(m.vertices.size());
+        m.vertices.push_back({{std::cos(a0) * radius, -half, std::sin(a0) * radius}, {0, -1, 0}, {0, 0}});
+        m.vertices.push_back({{std::cos(a1) * radius, -half, std::sin(a1) * radius}, {0, -1, 0}, {1, 0}});
+        m.indices.insert(m.indices.end(), {botCenter, b0 + 1, b0});
+        const uint32_t t0 = static_cast<uint32_t>(m.vertices.size());
+        m.vertices.push_back({{std::cos(a0) * radius, half, std::sin(a0) * radius}, {0, 1, 0}, {0, 1}});
+        m.vertices.push_back({{std::cos(a1) * radius, half, std::sin(a1) * radius}, {0, 1, 0}, {1, 1}});
+        m.indices.insert(m.indices.end(), {topCenter, t0, t0 + 1});
+    }
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeConeMesh(float radius, float height, int segments) {
+    MeshData m;
+    segments = std::max(segments, 6);
+    const uint32_t tip = 0;
+    m.vertices.push_back({{0, height, 0}, {0, 1, 0}, {0.5f, 1}});
+    for (int i = 0; i <= segments; ++i) {
+        const float t = static_cast<float>(i) / segments;
+        const float a = t * 6.2831853f;
+        const float c = std::cos(a), s = std::sin(a);
+        // Approximate smooth side normal.
+        const glm::vec3 n = glm::normalize(glm::vec3(c * height, radius, s * height));
+        m.vertices.push_back({{c * radius, 0, s * radius}, n, {t, 0}});
+    }
+    for (int i = 0; i < segments; ++i) {
+        m.indices.insert(m.indices.end(),
+                         {tip, static_cast<uint32_t>(1 + i), static_cast<uint32_t>(2 + i)});
+    }
+    const uint32_t baseCenter = static_cast<uint32_t>(m.vertices.size());
+    m.vertices.push_back({{0, 0, 0}, {0, -1, 0}, {0.5f, 0.5f}});
+    for (int i = 0; i < segments; ++i) {
+        m.indices.insert(m.indices.end(), {baseCenter, static_cast<uint32_t>(2 + i),
+                                           static_cast<uint32_t>(1 + i)});
+    }
+    m.computeNormals();
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeSphereMesh(float radius, int slices, int stacks) {
+    MeshData m;
+    slices = std::max(slices, 6);
+    stacks = std::max(stacks, 3);
+    for (int y = 0; y <= stacks; ++y) {
+        const float v = static_cast<float>(y) / stacks;
+        const float phi = v * 3.14159265f;
+        for (int x = 0; x <= slices; ++x) {
+            const float u = static_cast<float>(x) / slices;
+            const float theta = u * 6.2831853f;
+            const glm::vec3 n(std::sin(phi) * std::cos(theta), std::cos(phi),
+                              std::sin(phi) * std::sin(theta));
+            m.vertices.push_back({n * radius, n, {u, v}});
+        }
+    }
+    for (int y = 0; y < stacks; ++y) {
+        for (int x = 0; x < slices; ++x) {
+            const uint32_t i0 = static_cast<uint32_t>(y * (slices + 1) + x);
+            const uint32_t i1 = i0 + static_cast<uint32_t>(slices + 1);
+            m.indices.insert(m.indices.end(), {i0, i1, i0 + 1, i0 + 1, i1, i1 + 1});
+        }
+    }
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeGrassBladeMesh() {
+    MeshData m;
+    // Thin vertical blade, slight taper.
+    m.vertices = {
+        {{-0.02f, 0.0f, 0.0f}, {0, 0, 1}, {0, 0}},
+        {{0.02f, 0.0f, 0.0f}, {0, 0, 1}, {1, 0}},
+        {{0.01f, 0.35f, 0.0f}, {0, 0, 1}, {0.75f, 0.7f}},
+        {{0.0f, 0.55f, 0.0f}, {0, 0, 1}, {0.5f, 1}},
+        {{-0.01f, 0.35f, 0.0f}, {0, 0, 1}, {0.25f, 0.7f}},
+    };
+    m.indices = {0, 1, 2, 0, 2, 4, 4, 2, 3};
+    m.computeNormals();
+    m.computeBounds();
+    return m;
+}
+
+MeshData makeGridMesh(float size, int resolution) {
+    MeshData m;
+    resolution = std::max(resolution, 2);
+    const float half = size * 0.5f;
+    for (int z = 0; z < resolution; ++z) {
+        for (int x = 0; x < resolution; ++x) {
+            const float u = static_cast<float>(x) / (resolution - 1);
+            const float v = static_cast<float>(z) / (resolution - 1);
+            m.vertices.push_back({{(u * 2 - 1) * half, 0, (v * 2 - 1) * half},
+                                  {0, 1, 0},
+                                  {u, v}});
+        }
+    }
+    for (int z = 0; z < resolution - 1; ++z) {
+        for (int x = 0; x < resolution - 1; ++x) {
+            const uint32_t i0 = static_cast<uint32_t>(z * resolution + x);
+            const uint32_t i1 = i0 + 1;
+            const uint32_t i2 = i0 + static_cast<uint32_t>(resolution);
+            const uint32_t i3 = i2 + 1;
+            m.indices.insert(m.indices.end(), {i0, i2, i1, i1, i2, i3});
         }
     }
     m.computeBounds();

@@ -1,0 +1,30 @@
+{
+  "id": "beach",
+  "name": "Beach",
+  "builder": "beach",
+  "terrain": {
+    "type": "beach",
+    "size": 160,
+    "resolution": 192,
+    "maxHeight": 6,
+    "baseColor": [0.76, 0.68, 0.48]
+  },
+  "lighting": {
+    "timeOfDay": 16.5,
+    "latitude": 20.0,
+    "turbidity": 3.2,
+    "wind": 0.65,
+    "fog": 0.01,
+    "cloudCover": 0.35
+  },
+  "water": {
+    "size": 90,
+    "level": -0.15,
+    "center": [0.0, -0.15, -55.0]
+  },
+  "grassCount": 20000,
+  "photoSpots": [
+    { "name": "Shore", "position": [0.0, 0.0, -6.0], "facingYawDeg": 180.0 },
+    { "name": "Pier", "position": [0.0, 1.2, -10.0], "facingYawDeg": 180.0 }
+  ]
+}
