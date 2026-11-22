@@ -64,8 +64,10 @@ private:
     void applyDepth(DepthImage depth);
     void showFlatPlaceholder();
     void rebuildMesh();
+    void placePhotoInWorld();
     void frameOriginalView();
     void resetAll();
+    static std::string normalizeDroppedPath(const char* raw);
 
     // ---- Frame ----
     void handleInput(float dt);
@@ -99,7 +101,8 @@ private:
     DepthEstimator depthEstimator_;
     bool immersiveMode_ = true;
     std::string currentWorldId_ = "royal_garden";
-    bool showPhotoInWorld_ = false;
+    bool showPhotoInWorld_ = true;  // drop/load should appear in the world
+    float photoHeightM_ = 1.70f;
 
     // Inputs
     std::string photoName_ = "demo";

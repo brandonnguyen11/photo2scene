@@ -367,8 +367,14 @@ bool App::loadImage(const std::string& path) {
     depthPreview_.destroy();
     showFlatPlaceholder();
 
-    setStatus(StatusLevel::Info, "Loaded " + photoName_ + " (" + std::to_string(w) + "x" +
-                                     std::to_string(h) + ").");
+    if (immersiveMode_) {
+        showPhotoInWorld_ = true;
+        placePhotoInWorld();
+        setStatus(StatusLevel::Info, "Loaded " + photoName_ + " into the world. Estimating depth...");
+    } else {
+        setStatus(StatusLevel::Info, "Loaded " + photoName_ + " (" + std::to_string(w) + "x" +
+                                         std::to_string(h) + ").");
+    }
     if (autoEstimate_) startDepthEstimation();
     return true;
 }
@@ -386,8 +392,44 @@ void App::showFlatPlaceholder() {
     if (r.ok) {
         scene_.setReconstruction(r.mesh, photoTexture_.id());
         reconStats_ = r.stats;
-        frameOriginalView();
+        if (immersiveMode_) placePhotoInWorld();
+        else frameOriginalView();
     }
+}
+
+void App::placePhotoInWorld() {
+    if (!scene_.hasReconstruction()) return;
+
+    // Reconstruction is in photo-camera space (origin looking down −Z). Scale to a
+    // human height, plant the feet on a photo spot, and face the spot's yaw.
+    PhotoSpot spot;
+    const auto& spots = world_.photoSpots();
+    if (!spots.empty()) spot = spots.front();
+    else {
+        spot.position = {0.0f, 0.0f, -8.0f};
+        spot.facingYawDeg = 0.0f;
+    }
+
+    glm::vec3 pos = spot.position;
+    pos.y = world_.terrain().heightAt(pos.x, pos.z);
+
+    const float height = std::max(scene_.boundsMax().y - scene_.boundsMin().y, 0.15f);
+    const float scale = photoHeightM_ / height;
+    const glm::vec3 pivot(0.5f * (scene_.boundsMin().x + scene_.boundsMax().x),
+                          scene_.boundsMin().y,
+                          0.5f * (scene_.boundsMin().z + scene_.boundsMax().z));
+
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), pos);
+    model = glm::rotate(model, glm::radians(spot.facingYawDeg), glm::vec3(0, 1, 0));
+    // Recon "front" faces the camera (+Z); flip so the person faces along the spot yaw.
+    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0, 1, 0));
+    model = glm::scale(model, glm::vec3(scale));
+    model = glm::translate(model, -pivot);
+
+    scene_.photo().model = model;
+    scene_.photo().visible = true;
+    scene_.showGround = false;
+    showPhotoInWorld_ = true;
 }
 
 void App::startDepthEstimation() {
@@ -461,8 +503,18 @@ void App::applyDepth(DepthImage depth) {
     depth_ = std::move(depth);
     depthPreview_.create(ImageLoader::colorizeDepth(depth_), false);
     rebuildMesh();
-    frameOriginalView();
-    lighting_.placePointLights(scene_.center(), scene_.radius());
+    if (immersiveMode_) {
+        placePhotoInWorld();
+        // Orbit the planted photo instead of jumping back to the v1 photo camera.
+        const glm::vec3 focus = scene_.photo().model * glm::vec4(scene_.center(), 1.0f);
+        camera_.setHome(focus + glm::vec3(0.0f, photoHeightM_ * 0.5f, 0.0f), 6.0f,
+                        glm::radians(35.0f), glm::radians(12.0f), 50.0f);
+        camera_.farPlane = 500.0f;
+        camera_.reset();
+    } else {
+        frameOriginalView();
+        lighting_.placePointLights(scene_.center(), scene_.radius());
+    }
 }
 
 void App::rebuildMesh() {
@@ -474,6 +526,7 @@ void App::rebuildMesh() {
     }
     reconStats_ = r.stats;
     scene_.setReconstruction(r.mesh, photoTexture_.id());
+    if (immersiveMode_) placePhotoInWorld();
 }
 
 void App::frameOriginalView() {
@@ -504,9 +557,52 @@ void App::resetAll() {
     setStatus(StatusLevel::Info, "All settings reset to defaults.");
 }
 
+std::string App::normalizeDroppedPath(const char* raw) {
+    if (!raw) return {};
+    std::string path = raw;
+    // Some platforms hand us file:// URLs instead of plain paths.
+    if (path.rfind("file://", 0) == 0) {
+        path = path.substr(7);
+        // file:///Users/... → /Users/...
+        if (path.size() >= 2 && path[0] == '/' && path[1] == '/') path = path.substr(1);
+    }
+#if defined(_WIN32)
+    // file:///C:/... → C:/...
+    if (path.size() >= 3 && path[0] == '/' && std::isalpha(static_cast<unsigned char>(path[1])) &&
+        path[2] == ':') {
+        path.erase(path.begin());
+    }
+#endif
+    // Percent-decode common escapes (spaces, etc.).
+    std::string out;
+    out.reserve(path.size());
+    for (size_t i = 0; i < path.size(); ++i) {
+        if (path[i] == '%' && i + 2 < path.size()) {
+            auto hex = [](char c) -> int {
+                if (c >= '0' && c <= '9') return c - '0';
+                if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                return -1;
+            };
+            const int hi = hex(path[i + 1]), lo = hex(path[i + 2]);
+            if (hi >= 0 && lo >= 0) {
+                out.push_back(static_cast<char>((hi << 4) | lo));
+                i += 2;
+                continue;
+            }
+        }
+        out.push_back(path[i]);
+    }
+    return out;
+}
+
 void App::onFileDrop(int count, const char** paths) {
     if (count <= 0) return;
-    const std::string path = paths[0];
+    const std::string path = normalizeDroppedPath(paths[0]);
+    if (path.empty()) {
+        setStatus(StatusLevel::Error, "Drop failed: empty path.");
+        return;
+    }
     std::string lower = fs::u8path(path).filename().u8string();
     std::transform(lower.begin(), lower.end(), lower.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });

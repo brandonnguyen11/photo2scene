@@ -86,6 +86,7 @@ void App::drawControlPanel() {
 
 void App::drawImageSection() {
     ImGui::TextWrapped("Drag & drop a JPG/PNG onto the window, or paste a path:");
+    ImGui::TextDisabled("HEIC/WebP not supported — export as JPG or PNG first.");
     ImGui::SetNextItemWidth(-60);
     const bool enter = ImGui::InputText("##imagepath", &imagePathInput_,
                                         ImGuiInputTextFlags_EnterReturnsTrue);
@@ -93,6 +94,10 @@ void App::drawImageSection() {
     if (ImGui::Button("Load") || enter) loadImage(imagePathInput_);
 
     ImGui::Checkbox("Estimate depth automatically", &autoEstimate_);
+    if (immersiveMode_) {
+        ImGui::SliderFloat("Photo height (m)", &photoHeightM_, 1.2f, 2.2f, "%.2f");
+        if (ImGui::IsItemDeactivatedAfterEdit() && scene_.hasReconstruction()) placePhotoInWorld();
+    }
     ImGui::BeginDisabled(depthEstimator_.busy() || currentImagePath_.empty());
     if (ImGui::Button("Estimate depth now")) startDepthEstimation();
     ImGui::EndDisabled();
@@ -299,6 +304,7 @@ void App::drawWorldSection() {
 
     ImGui::SeparatorText("Placement");
     ImGui::Checkbox("Show photo mesh in world", &showPhotoInWorld_);
+    if (ImGui::Button("Re-place photo in world") && scene_.hasReconstruction()) placePhotoInWorld();
     if (ImGui::Button("Frame world view")) frameWorldView();
     ImGui::SameLine();
     if (ImGui::Button("Reload world JSON")) loadWorld(currentWorldId_);

@@ -58,6 +58,8 @@ public:
     // Bounds of the reconstructed object (falls back to a unit region).
     glm::vec3 center() const { return center_; }
     float radius() const { return radius_; }
+    glm::vec3 boundsMin() const { return boundsMin_; }
+    glm::vec3 boundsMax() const { return boundsMax_; }
 
     size_t gpuBytes() const;
 
