@@ -4,8 +4,8 @@
   "builder": "royal_garden",
   "terrain": {
     "type": "flat",
-    "size": 160,
-    "resolution": 220,
+    "size": 180,
+    "resolution": 240,
     "maxHeight": 2,
     "baseColor": [0.28, 0.48, 0.20]
   },
@@ -17,10 +17,11 @@
     "fog": 0.003,
     "cloudCover": 0.35
   },
-  "grassCount": 70000,
+  "grassCount": 90000,
   "photoSpots": [
     { "name": "Fountain court", "position": [0.0, 0.0, -12.0], "facingYawDeg": 0.0 },
     { "name": "Parterre east", "position": [12.0, 0.0, 0.0], "facingYawDeg": -90.0 },
-    { "name": "Palace view", "position": [0.0, 0.0, 28.0], "facingYawDeg": 0.0 }
+    { "name": "Palace terrace", "position": [0.0, 1.5, 42.0], "facingYawDeg": 180.0 },
+    { "name": "Canal view", "position": [0.0, 0.0, -42.0], "facingYawDeg": 0.0 }
   ]
 }

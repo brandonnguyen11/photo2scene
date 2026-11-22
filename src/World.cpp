@@ -184,7 +184,6 @@ void World::buildRoyalGarden() {
     const glm::vec3 hedgeDark(0.12f, 0.28f, 0.12f);
     const glm::vec3 gravel(0.55f, 0.50f, 0.42f);
     const glm::vec3 stone(0.62f, 0.60f, 0.56f);
-    const glm::vec3 roof(0.45f, 0.22f, 0.18f);
     const glm::vec3 water(0.25f, 0.55f, 0.62f);
 
     // Central gravel axis (mirror-symmetric about Z).
@@ -245,7 +244,7 @@ void World::buildRoyalGarden() {
         }
     }
 
-    // Fountain: tiered stone bowls + center jet.
+    // ---- Central fountain (Apollo basin) ----
     addMesh("fountain_base", makeCylinderMesh(6.2f, 0.55f, 36), trs({0, 0.15f, 0}, 0, {1, 1, 1}),
             stone, true, WorldMaterial::Stone);
     addMesh("fountain_rim", makeCylinderMesh(5.7f, 0.35f, 36), trs({0, 0.55f, 0}, 0, {1, 1, 1}),
@@ -258,88 +257,297 @@ void World::buildRoyalGarden() {
             stone, true, WorldMaterial::Stone);
     (void)water;
 
-    // Palace — layered façade so it reads as architecture, not a mega-box.
-    const glm::vec3 cream(0.90f, 0.86f, 0.78f);
-    const glm::vec3 trim(0.95f, 0.93f, 0.88f);
-    // Main body + recessed wings
-    addBox("palace_body", {-22.0f, 0.0f, 48.5f}, {22.0f, 12.5f, 55.0f}, cream, true,
-           WorldMaterial::Stucco);
-    addBox("palace_wing_l", {-30.0f, 0.0f, 49.5f}, {-21.5f, 10.0f, 55.5f}, cream, true,
-           WorldMaterial::Stucco);
-    addBox("palace_wing_r", {21.5f, 0.0f, 49.5f}, {30.0f, 10.0f, 55.5f}, cream, true,
-           WorldMaterial::Stucco);
-    // Base plinth / water table
-    addBox("palace_plinth", {-30.5f, 0.0f, 48.2f}, {30.5f, 1.1f, 55.8f}, stone, true,
-           WorldMaterial::Stone);
-    // Cornice bands
-    addBox("cornice_low", {-30.2f, 5.8f, 48.2f}, {30.2f, 6.4f, 55.7f}, trim, true,
-           WorldMaterial::Stone);
-    addBox("cornice_high", {-22.5f, 11.8f, 48.2f}, {22.5f, 12.8f, 55.3f}, trim, true,
-           WorldMaterial::Stone);
-    // Mansard-ish roof volumes
-    addBox("roof_main", {-23.0f, 12.5f, 48.0f}, {23.0f, 15.8f, 55.5f}, roof, true,
-           WorldMaterial::Plain);
-    addBox("roof_wing_l", {-30.5f, 10.0f, 49.0f}, {-21.0f, 13.2f, 56.0f}, roof, true,
-           WorldMaterial::Plain);
-    addBox("roof_wing_r", {21.0f, 10.0f, 49.0f}, {30.5f, 13.2f, 56.0f}, roof, true,
-           WorldMaterial::Plain);
-    // Central pediment
-    addMesh("pediment", makeConeMesh(5.5f, 3.2f, 3),
-            trs({0.0f, 15.8f, 48.3f}, 0, {1.0f, 0.55f, 0.25f}), roof, true, WorldMaterial::Plain);
-    // Columns + framed windows
-    MeshData col = makeTaperedTrunk(0.42f, 0.32f, 9.5f, 10);
-    for (int i = -5; i <= 5; ++i) {
-        const float x = i * 3.8f;
-        addMesh("column", col, trs({x, 1.2f, 48.35f}, 0, {1, 1, 1}), trim, true,
-                WorldMaterial::Stone);
-        addBox("col_cap", {x - 0.5f, 10.5f, 48.1f}, {x + 0.5f, 11.0f, 48.7f}, trim, true,
-               WorldMaterial::Stone);
-        // Window recess + glass
-        addBox("win_frame", {x - 1.15f, 3.2f, 48.25f}, {x + 1.15f, 8.2f, 48.55f}, stone, false,
-               WorldMaterial::Stone);
-        addBox("win_glass", {x - 0.95f, 3.4f, 48.2f}, {x + 0.95f, 8.0f, 48.35f},
-               {0.20f, 0.32f, 0.42f}, false, WorldMaterial::Plain);
-    }
-    // Balustrade along the front terrace
-    for (int i = -14; i <= 14; ++i) {
-        const float x = i * 2.0f;
-        addMesh("baluster", makeCylinderMesh(0.12f, 0.9f, 6), trs({x, 1.55f, 47.2f}, 0, {1, 1, 1}),
-                trim, true, WorldMaterial::Stone);
-    }
-    addBox("rail", {-28.5f, 1.95f, 47.05f}, {28.5f, 2.15f, 47.35f}, trim, true,
-           WorldMaterial::Stone);
+    // Secondary Latona-style basin further down the axis toward the canal.
+    addMesh("latona_rim", makeCylinderMesh(4.0f, 0.4f, 28), trs({0, 0.2f, -28.0f}, 0, {1, 1, 1}),
+            stone, true, WorldMaterial::Stone);
+    addBox("latona_water", {-3.4f, 0.35f, -31.4f}, {3.4f, 0.42f, -24.6f}, {0.22f, 0.48f, 0.55f}, false,
+           WorldMaterial::Water);
+    addMesh("latona_center", makeCylinderMesh(0.9f, 1.2f, 12), trs({0, 0.9f, -28.0f}, 0, {1, 1, 1}),
+            stone, true, WorldMaterial::Stone);
 
-    // Statue plinths with simple figure (stacked forms)
+    // Grand Canal — long reflecting pool toward −Z (Versailles signature).
+    addBox("canal_rim", {-5.5f, -0.05f, -72.0f}, {5.5f, 0.35f, -38.0f}, stone, true,
+           WorldMaterial::Stone);
+    addBox("canal_water", {-4.8f, 0.22f, -71.0f}, {4.8f, 0.30f, -39.0f}, {0.15f, 0.38f, 0.48f}, false,
+           WorldMaterial::Water);
+
+    // Extra gravel alleys + cross walks so the grounds aren't empty lawn.
+    addBox("path_upper", {-3.0f, -0.02f, 20.0f}, {3.0f, 0.03f, 46.0f}, gravel, false,
+           WorldMaterial::Gravel);
+    addBox("path_diag_e", {3.0f, -0.02f, 18.0f}, {22.0f, 0.03f, 20.5f}, gravel, false,
+           WorldMaterial::Gravel);
+    addBox("path_diag_w", {-22.0f, -0.02f, 18.0f}, {-3.0f, 0.03f, 20.5f}, gravel, false,
+           WorldMaterial::Gravel);
+    addBox("path_south", {-2.5f, -0.02f, -55.0f}, {2.5f, 0.03f, -38.0f}, gravel, false,
+           WorldMaterial::Gravel);
+    addBox("path_east_allée", {26.0f, -0.02f, -40.0f}, {29.0f, 0.03f, 40.0f}, gravel, false,
+           WorldMaterial::Gravel);
+    addBox("path_west_allée", {-29.0f, -0.02f, -40.0f}, {-26.0f, 0.03f, 40.0f}, gravel, false,
+           WorldMaterial::Gravel);
+
+    // Flower parterre beds (color blocks between hedges).
+    const glm::vec3 flowerA(0.72f, 0.22f, 0.28f);
+    const glm::vec3 flowerB(0.85f, 0.72f, 0.25f);
+    const glm::vec3 flowerC(0.55f, 0.35f, 0.65f);
     for (int side : {-1, 1}) {
-        const float sx = static_cast<float>(side) * 12.0f;
-        addBox("plinth", {sx - 1.0f, 0, 32.0f}, {sx + 1.0f, 1.4f, 34.0f}, stone, true,
-               WorldMaterial::Stone);
-        addMesh("statue_body", makeTaperedTrunk(0.35f, 0.22f, 1.6f, 8),
-                trs({sx, 1.4f, 33.0f}, 0, {1, 1, 1}), {0.78f, 0.75f, 0.70f}, true,
-                WorldMaterial::Stone);
-        addMesh("statue_head", makeSphereMesh(0.28f, 10, 8), trs({sx, 3.2f, 33.0f}, 0, {1, 1, 1}),
-                {0.80f, 0.77f, 0.72f}, true, WorldMaterial::Stone);
+        const float s = static_cast<float>(side);
+        addBox("flowers", {s * 11.0f, 0.02f, -14.0f}, {s * 16.0f, 0.18f, -11.0f}, flowerA, false,
+               WorldMaterial::Plain);
+        addBox("flowers", {s * 11.0f, 0.02f, 5.0f}, {s * 16.0f, 0.18f, 8.0f}, flowerB, false,
+               WorldMaterial::Plain);
+        addBox("flowers", {s * 13.0f, 0.02f, -7.0f}, {s * 15.5f, 0.18f, -5.0f}, flowerC, false,
+               WorldMaterial::Plain);
     }
 
-    // Tree rows — layered canopies, tapered trunks
+    // ---- Versailles-inspired palace façade ----
+    const glm::vec3 cream(0.91f, 0.87f, 0.78f);
+    const glm::vec3 trim(0.96f, 0.94f, 0.88f);
+    const glm::vec3 gold(0.78f, 0.62f, 0.28f);
+    const glm::vec3 glass(0.18f, 0.28f, 0.40f);
+    const glm::vec3 slate(0.28f, 0.30f, 0.34f);
+    const float facadeZ = 48.4f;
+
+    // Deep massing: center corps + projecting avant-corps + lower wings + end pavilions.
+    addBox("corps", {-18.0f, 0.0f, facadeZ}, {18.0f, 14.0f, 56.5f}, cream, true,
+           WorldMaterial::Stucco);
+    addBox("avant", {-7.0f, 0.0f, facadeZ - 1.4f}, {7.0f, 15.2f, facadeZ + 0.2f}, cream, true,
+           WorldMaterial::Stucco);
+    addBox("wing_l", {-36.0f, 0.0f, facadeZ + 0.8f}, {-17.5f, 11.5f, 57.0f}, cream, true,
+           WorldMaterial::Stucco);
+    addBox("wing_r", {17.5f, 0.0f, facadeZ + 0.8f}, {36.0f, 11.5f, 57.0f}, cream, true,
+           WorldMaterial::Stucco);
+    addBox("pav_l", {-40.0f, 0.0f, facadeZ}, {-35.0f, 13.5f, 57.5f}, cream, true,
+           WorldMaterial::Stucco);
+    addBox("pav_r", {35.0f, 0.0f, facadeZ}, {40.0f, 13.5f, 57.5f}, cream, true,
+           WorldMaterial::Stucco);
+
+    // Rusticated ground floor (banded stone).
+    addBox("rust_base", {-40.5f, 0.0f, facadeZ - 1.6f}, {40.5f, 3.2f, 57.8f}, stone, true,
+           WorldMaterial::Stone);
+    for (int b = 0; b < 4; ++b) {
+        const float y0 = 0.3f + b * 0.7f;
+        addBox("rust_band", {-40.3f, y0, facadeZ - 1.65f}, {40.3f, y0 + 0.18f, facadeZ - 1.45f},
+               trim, false, WorldMaterial::Stone);
+    }
+
+    // Grand terrace steps up to the palace.
+    for (int step = 0; step < 5; ++step) {
+        const float z0 = 44.0f + step * 0.85f;
+        const float y0 = step * 0.28f;
+        addBox("stair", {-12.0f - step * 0.4f, y0, z0}, {12.0f + step * 0.4f, y0 + 0.3f, z0 + 0.9f},
+               stone, true, WorldMaterial::Stone);
+    }
+    addBox("terrace", {-28.0f, 1.35f, 46.5f}, {28.0f, 1.55f, facadeZ - 1.5f}, stone, true,
+           WorldMaterial::Stone);
+
+    // Pilasters / engaged columns across the façade.
+    MeshData pilaster = makeTaperedTrunk(0.38f, 0.32f, 9.8f, 10);
+    auto addWindowBay = [&](float x, float zFront, float sillY, float winH, bool tall) {
+        addMesh("pilaster", pilaster, trs({x - 1.55f, 3.3f, zFront}, 0, {1, 1, 1}), trim, true,
+                WorldMaterial::Stone);
+        addMesh("pilaster", pilaster, trs({x + 1.55f, 3.3f, zFront}, 0, {1, 1, 1}), trim, true,
+                WorldMaterial::Stone);
+        addBox("cap", {x - 1.75f, 12.9f, zFront - 0.15f}, {x + 1.75f, 13.3f, zFront + 0.35f}, trim,
+               true, WorldMaterial::Stone);
+        // Window niche + glass + gold mullion hint
+        addBox("niche", {x - 1.15f, sillY, zFront - 0.05f}, {x + 1.15f, sillY + winH, zFront + 0.25f},
+               stone, false, WorldMaterial::Stone);
+        addBox("glass", {x - 1.0f, sillY + 0.15f, zFront - 0.12f},
+               {x + 1.0f, sillY + winH - 0.15f, zFront + 0.02f}, glass, false, WorldMaterial::Plain);
+        addBox("mullion", {x - 0.05f, sillY + 0.15f, zFront - 0.14f},
+               {x + 0.05f, sillY + winH - 0.15f, zFront - 0.08f}, gold, false, WorldMaterial::Plain);
+        // Pediment above tall windows
+        if (tall) {
+            addMesh("win_ped", makeConeMesh(1.4f, 0.7f, 3),
+                    trs({x, sillY + winH + 0.15f, zFront}, 0, {1.0f, 0.45f, 0.2f}), trim, true,
+                    WorldMaterial::Stone);
+        }
+    };
+
+    // Central avant-corps: 5 tall bays
+    for (int i = -2; i <= 2; ++i) addWindowBay(i * 2.7f, facadeZ - 1.45f, 3.6f, 7.2f, true);
+    // Main corps side bays
+    for (int i = -5; i <= 5; ++i) {
+        if (std::abs(i) <= 2) continue;
+        addWindowBay(i * 2.9f, facadeZ - 0.15f, 3.8f, 6.2f, false);
+    }
+    // Wing windows (two floors)
+    for (int side : {-1, 1}) {
+        for (int i = 0; i < 5; ++i) {
+            const float x = static_cast<float>(side) * (20.0f + i * 3.0f);
+            addWindowBay(x, facadeZ + 0.65f, 3.6f, 3.2f, false);
+            addBox("win2", {x - 0.9f, 8.0f, facadeZ + 0.55f}, {x + 0.9f, 10.4f, facadeZ + 0.85f},
+                   glass, false, WorldMaterial::Plain);
+        }
+    }
+
+    // Entablature + cornice stack
+    addBox("entablature", {-40.5f, 13.2f, facadeZ - 1.7f}, {40.5f, 14.0f, 57.6f}, trim, true,
+           WorldMaterial::Stone);
+    addBox("cornice", {-41.0f, 14.0f, facadeZ - 1.9f}, {41.0f, 14.7f, 57.9f}, trim, true,
+           WorldMaterial::Stone);
+
+    // Mansard roofs + dormers + chimneys
+    addBox("roof_c", {-19.0f, 14.5f, facadeZ - 0.5f}, {19.0f, 18.5f, 57.0f}, slate, true,
+           WorldMaterial::Plain);
+    addBox("roof_av", {-8.0f, 15.0f, facadeZ - 1.8f}, {8.0f, 19.5f, facadeZ + 2.0f}, slate, true,
+           WorldMaterial::Plain);
+    addBox("roof_wl", {-37.0f, 11.5f, facadeZ}, {-17.0f, 15.5f, 57.5f}, slate, true,
+           WorldMaterial::Plain);
+    addBox("roof_wr", {17.0f, 11.5f, facadeZ}, {37.0f, 15.5f, 57.5f}, slate, true,
+           WorldMaterial::Plain);
+    addBox("roof_pl", {-41.0f, 13.5f, facadeZ - 0.5f}, {-34.5f, 17.5f, 58.0f}, slate, true,
+           WorldMaterial::Plain);
+    addBox("roof_pr", {34.5f, 13.5f, facadeZ - 0.5f}, {41.0f, 17.5f, 58.0f}, slate, true,
+           WorldMaterial::Plain);
+    addMesh("pediment", makeConeMesh(8.0f, 4.0f, 4),
+            trs({0.0f, 19.3f, facadeZ - 1.6f}, 0, {1.0f, 0.5f, 0.22f}), slate, true,
+            WorldMaterial::Plain);
+    for (int i = -3; i <= 3; ++i) {
+        const float x = i * 4.5f;
+        addBox("dormer", {x - 0.7f, 16.2f, facadeZ - 0.7f}, {x + 0.7f, 17.8f, facadeZ - 0.2f}, cream,
+               true, WorldMaterial::Stucco);
+        addBox("dormer_glass", {x - 0.45f, 16.4f, facadeZ - 0.75f},
+               {x + 0.45f, 17.5f, facadeZ - 0.55f}, glass, false, WorldMaterial::Plain);
+    }
+    for (float x : {-14.0f, -6.0f, 6.0f, 14.0f, -32.0f, 32.0f}) {
+        addBox("chimney", {x - 0.45f, 17.0f, 52.0f}, {x + 0.45f, 21.0f, 53.2f}, stone, true,
+               WorldMaterial::Stone);
+    }
+
+    // Roof balustrade + statues
+    for (int i = -16; i <= 16; ++i) {
+        const float x = i * 2.4f;
+        addMesh("roof_bal", makeCylinderMesh(0.1f, 0.85f, 6),
+                trs({x, 15.1f, facadeZ - 1.85f}, 0, {1, 1, 1}), trim, true, WorldMaterial::Stone);
+    }
+    addBox("roof_rail", {-39.0f, 15.45f, facadeZ - 1.95f}, {39.0f, 15.65f, facadeZ - 1.75f}, trim,
+           true, WorldMaterial::Stone);
+    for (int i = -3; i <= 3; ++i) {
+        const float x = i * 8.0f;
+        addMesh("roof_statue", makeTaperedTrunk(0.22f, 0.14f, 1.4f, 6),
+                trs({x, 15.7f, facadeZ - 1.9f}, 0, {1, 1, 1}), {0.82f, 0.80f, 0.74f}, true,
+                WorldMaterial::Stone);
+    }
+
+    // Terrace balustrade
+    for (int i = -14; i <= 14; ++i) {
+        addMesh("terr_bal", makeCylinderMesh(0.12f, 0.95f, 6),
+                trs({static_cast<float>(i) * 2.0f, 1.7f, 46.3f}, 0, {1, 1, 1}), trim, true,
+                WorldMaterial::Stone);
+    }
+    addBox("terr_rail", {-28.5f, 2.1f, 46.15f}, {28.5f, 2.3f, 46.45f}, trim, true,
+           WorldMaterial::Stone);
+
+    // ---- Side orangery / pavilion buildings ----
+    auto buildPavilion = [&](float cx, float cz, float yaw) {
+        const glm::mat4 R = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), {0, 1, 0});
+        auto localBox = [&](const char* name, glm::vec3 a, glm::vec3 b, const glm::vec3& col,
+                            WorldMaterial mat) {
+            const glm::vec3 c = (a + b) * 0.5f;
+            const glm::vec3 h = (b - a) * 0.5f;
+            MeshData box = makeBoxMesh(-h, h);
+            addMesh(name, box, glm::translate(glm::mat4(1.0f), glm::vec3(cx, 0, cz)) * R *
+                                       glm::translate(glm::mat4(1.0f), c),
+                    col, true, mat);
+        };
+        localBox("pav_body", {-6.0f, 0.0f, -4.0f}, {6.0f, 6.5f, 4.0f}, cream, WorldMaterial::Stucco);
+        localBox("pav_base", {-6.3f, 0.0f, -4.3f}, {6.3f, 1.0f, 4.3f}, stone, WorldMaterial::Stone);
+        localBox("pav_roof", {-6.8f, 6.3f, -4.6f}, {6.8f, 8.2f, 4.6f}, slate, WorldMaterial::Plain);
+        localBox("pav_door", {-1.2f, 1.0f, -4.15f}, {1.2f, 4.2f, -3.85f}, glass, WorldMaterial::Plain);
+        for (float x : {-3.8f, 3.8f}) {
+            localBox("pav_win", {x - 0.9f, 2.2f, -4.15f}, {x + 0.9f, 4.8f, -3.9f}, glass,
+                     WorldMaterial::Plain);
+        }
+    };
+    buildPavilion(-48.0f, 5.0f, 90.0f);
+    buildPavilion(48.0f, 5.0f, -90.0f);
+
+    // Garden temples / follies at the far corners.
+    auto buildTemple = [&](float cx, float cz) {
+        const float y = terrain_.heightAt(cx, cz);
+        addMesh("temple_plat", makeCylinderMesh(3.2f, 0.4f, 16), trs({cx, y + 0.2f, cz}, 0, {1, 1, 1}),
+                stone, true, WorldMaterial::Stone);
+        MeshData tcol = makeTaperedTrunk(0.22f, 0.18f, 3.8f, 8);
+        for (int i = 0; i < 6; ++i) {
+            const float a = i * 60.0f;
+            const float rad = 2.2f;
+            addMesh("temple_col", tcol,
+                    trs({cx + std::cos(glm::radians(a)) * rad, y + 0.4f,
+                         cz + std::sin(glm::radians(a)) * rad},
+                        a, {1, 1, 1}),
+                    trim, true, WorldMaterial::Stone);
+        }
+        addMesh("temple_dome", makeSphereMesh(2.4f, 14, 10),
+                trs({cx, y + 5.2f, cz}, 0, {1.0f, 0.55f, 1.0f}), slate, true, WorldMaterial::Plain);
+    };
+    buildTemple(-42.0f, -45.0f);
+    buildTemple(42.0f, -45.0f);
+    buildTemple(-38.0f, 28.0f);
+    buildTemple(38.0f, 28.0f);
+
+    // Statue walk along both sides of the main axis.
+    for (int side : {-1, 1}) {
+        for (int i = 0; i < 8; ++i) {
+            const float z = -36.0f + i * 9.0f;
+            const float x = static_cast<float>(side) * 8.5f;
+            const float y = terrain_.heightAt(x, z);
+            addBox("plinth", {x - 0.7f, y, z - 0.7f}, {x + 0.7f, y + 1.1f, z + 0.7f}, stone, true,
+                   WorldMaterial::Stone);
+            addMesh("statue", makeTaperedTrunk(0.28f, 0.16f, 1.8f, 8),
+                    trs({x, y + 1.1f, z}, 0, {1, 1, 1}), {0.80f, 0.77f, 0.72f}, true,
+                    WorldMaterial::Stone);
+            addMesh("statue_h", makeSphereMesh(0.25f, 8, 6), trs({x, y + 3.1f, z}, 0, {1, 1, 1}),
+                    {0.82f, 0.79f, 0.74f}, true, WorldMaterial::Stone);
+        }
+    }
+
+    // Stone benches along the east/west allées.
+    for (int side : {-1, 1}) {
+        for (int i = 0; i < 6; ++i) {
+            const float z = -30.0f + i * 12.0f;
+            const float x = static_cast<float>(side) * 27.5f;
+            const float y = terrain_.heightAt(x, z);
+            addBox("bench", {x - 1.2f, y + 0.35f, z - 0.35f}, {x + 1.2f, y + 0.55f, z + 0.35f}, stone,
+                   true, WorldMaterial::Stone);
+            addBox("bench_leg", {x - 1.0f, y, z - 0.3f}, {x - 0.7f, y + 0.35f, z + 0.3f}, stone, true,
+                   WorldMaterial::Stone);
+            addBox("bench_leg", {x + 0.7f, y, z - 0.3f}, {x + 1.0f, y + 0.35f, z + 0.3f}, stone, true,
+                   WorldMaterial::Stone);
+        }
+    }
+
+    // Bosquet groves (dense tree clusters) filling the outer plane.
     MeshData trunk = makeTaperedTrunk(0.45f, 0.18f, 7.0f, 10);
     MeshData canopyA = makeSphereMesh(2.6f, 14, 10);
     MeshData canopyB = makeSphereMesh(2.0f, 12, 9);
+    auto plantTree = [&](float x, float z, float s) {
+        const float y = terrain_.heightAt(x, z);
+        const float lean = (hash01(z, x) - 0.5f) * 10.0f;
+        addMesh("trunk", trunk, trs({x, y, z}, lean, {s, s, s}), {0.32f, 0.20f, 0.11f}, true,
+                WorldMaterial::Bark);
+        addMesh("canopy_a", canopyA, trs({x, y + 7.0f * s, z}, 0, {1.1f * s, 0.85f * s, s}),
+                hedgeDark, true, WorldMaterial::Hedge);
+        addMesh("canopy_b", canopyB,
+                trs({x + 0.8f * s, y + 6.2f * s, z - 0.5f * s}, 20.0f, {0.85f * s, 0.7f * s, 0.9f * s}),
+                hedge, true, WorldMaterial::Hedge);
+    };
+    // Formal rows along the edges
     for (int side : {-1, 1}) {
-        for (int i = 0; i < 14; ++i) {
-            const float z = -50.0f + i * 7.5f;
-            const float x =
-                static_cast<float>(side) * 32.0f + hash01(static_cast<float>(side), z) * 2.0f;
-            const float y = terrain_.heightAt(x, z);
-            const float lean = (hash01(z, x) - 0.5f) * 8.0f;
-            addMesh("trunk", trunk, trs({x, y, z}, lean, {1, 1, 1}), {0.32f, 0.20f, 0.11f}, true,
-                    WorldMaterial::Bark);
-            addMesh("canopy_a", canopyA, trs({x, y + 7.0f, z}, 0, {1.1f, 0.85f, 1.0f}), hedgeDark,
-                    true, WorldMaterial::Hedge);
-            addMesh("canopy_b", canopyB,
-                    trs({x + 0.8f, y + 6.2f, z - 0.5f}, 20.0f, {0.85f, 0.7f, 0.9f}), hedge, true,
-                    WorldMaterial::Hedge);
+        for (int i = 0; i < 16; ++i) {
+            const float z = -55.0f + i * 7.0f;
+            const float x = static_cast<float>(side) * 34.0f + hash01(static_cast<float>(side), z);
+            plantTree(x, z, 0.9f + hash01(i, side) * 0.25f);
         }
+    }
+    // Outer bosquet fill (scattered)
+    for (int i = 0; i < 55; ++i) {
+        const float x = (hash01(i, 1.0f) - 0.5f) * 130.0f;
+        const float z = (hash01(i, 2.0f) - 0.5f) * 130.0f;
+        // Keep center formal garden + palace + canal clear.
+        if (std::abs(x) < 32.0f && z > -75.0f && z < 48.0f) continue;
+        if (z > 42.0f && std::abs(x) < 45.0f) continue;
+        plantTree(x, z, 0.85f + hash01(i, 3.0f) * 0.4f);
     }
 
     // Circular pool water sitting inside the fountain rim (not a square grid).
@@ -349,8 +557,8 @@ void World::buildRoyalGarden() {
     desc_.waterCenter = {0.0f, 0.78f, 0.0f};
     desc_.waterSize = desc_.waterRadius * 2.0f;
     desc_.waterLevel = 0.78f;
-    desc_.waterWaveScale = 0.28f;  // calm but visible Brownian ripples
-    desc_.waterShoreZ = 1e6f;  // no shore clip
+    desc_.waterWaveScale = 0.28f;
+    desc_.waterShoreZ = 1e6f;
     waterDeep_ = {0.08f, 0.32f, 0.40f};
     waterShallow_ = {0.28f, 0.60f, 0.62f};
     waterGpu_.upload(makeDiscMesh(desc_.waterRadius, 28, 64));
@@ -358,13 +566,16 @@ void World::buildRoyalGarden() {
     if (desc_.photoSpots.empty()) {
         desc_.photoSpots.push_back({"Fountain court", {0.0f, 0.0f, -12.0f}, 0.0f});
         desc_.photoSpots.push_back({"Parterre east", {12.0f, 0.0f, 0.0f}, -90.0f});
+        desc_.photoSpots.push_back({"Palace terrace", {0.0f, 1.5f, 42.0f}, 180.0f});
+        desc_.photoSpots.push_back({"Canal view", {0.0f, 0.0f, -42.0f}, 0.0f});
     }
 
-    buildGrass(desc_.grassCount, -30.0f, 30.0f, -48.0f, 40.0f, [&](float x, float z) {
-        // Keep gravel paths and fountain clear.
-        if (std::abs(x) < 3.4f && z > -55.0f && z < 42.0f) return false;
+    buildGrass(desc_.grassCount, -55.0f, 55.0f, -70.0f, 45.0f, [&](float x, float z) {
+        if (std::abs(x) < 3.4f && z > -75.0f && z < 46.0f) return false;
         if (std::abs(z) < 3.2f && std::abs(x) < 28.0f) return false;
+        if (std::abs(x) > 25.5f && std::abs(x) < 29.5f && z > -40.0f && z < 40.0f) return false;
         if (x * x + z * z < 6.5f * 6.5f) return false;
+        if (z > 43.0f && std::abs(x) < 42.0f) return false;
         return true;
     });
 }
