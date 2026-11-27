@@ -53,23 +53,38 @@ bool Terrain::build(const TerrainDesc& desc) {
             const float wz = v * half_;
             float h = 0.0f;
 
-            if (desc.type == "beach") {
-                // Rising inland (+Z), dropping into the ocean (−Z) with dunes & ripples.
-                const float inland = std::clamp((wz + 25.0f) / 70.0f, 0.0f, 1.0f);
-                const float ocean = std::clamp((-wz - 5.0f) / 40.0f, 0.0f, 1.0f);
+          if (desc.type == "beach") {
+    const float waterY = 0.12f;   // keep in sync with water level
+    const float shoreZ = -6.0f;   // keep in sync with waterShoreZ
 
-                // Broad dune ridges parallel to the shore.
-                const float dunes =
-                    ridged(wx * 0.035f + 2.0f, wz * 0.08f) * inland * desc.maxHeight * 0.85f;
-                const float mounds =
-                    (fbm(wx * 0.06f, wz * 0.06f, 5) - 0.35f) * inland * desc.maxHeight * 0.55f;
-                const float ripples =
-                    std::sin(wx * 2.8f + fbm(wx * 0.2f, wz * 0.2f, 2) * 3.0f) * 0.08f * inland;
+    // Foreshore ramp through the waterline, capped into a flat berm at ~1 m.
+    const float shore = std::min(waterY + (wz - shoreZ) * 0.06f, 1.0f);
 
-                h = inland * inland * 1.2f + dunes + mounds + ripples;
-                // Underwater shelf slopes gently down.
-                h -= ocean * ocean * 2.8f;
-                if (wz < -8.0f) h = std::min(h, -0.15f - ocean * 1.5f);
+    // Dunes fade in smoothly further inland (no abrupt step).
+    const float t = std::clamp((wz - 4.0f) / 30.0f, 0.0f, 1.0f);
+    const float inland = t * t * (3.0f - 2.0f * t);
+
+    const float dunes =
+        ridged(wx * 0.035f + 2.0f, wz * 0.08f) * inland * desc.maxHeight * 0.85f;
+    const float mounds =
+        (fbm(wx * 0.06f, wz * 0.06f, 5) - 0.35f) * inland * desc.maxHeight * 0.55f;
+    const float ripples =
+        std::sin(wx * 2.8f + fbm(wx * 0.2f, wz * 0.2f, 2) * 3.0f) * 0.08f * inland;
+
+    h = shore + dunes + mounds + ripples; 
+
+                    // Taper the left/right/back edges down below the waterline so the island ends naturally.
+                auto sstep = [](float a, float b, float x) {
+                    const float k = std::clamp((x - a) / (b - a), 0.0f, 1.0f);
+                    return k * k * (3.0f - 2.0f * k);
+                };
+                // Long coast: land continues for ~700 m each way. Only the far ends rise into
+                // headlands (hidden in haze), and hills close off the far inland edge.
+                const float sideT = sstep(half_ * 0.80f, half_ * 0.98f, std::abs(wx));
+                const float backT = sstep(half_ * 0.45f, half_ * 0.95f, wz);
+                const float reach = sstep(-half_ * 0.45f, -half_ * 0.10f, wz);
+                h += std::max(sideT * reach, backT) * 18.0f;
+
             } else if (desc.type == "hills") {
                 h = fbm(wx * 0.018f + 3.1f, wz * 0.018f + 1.7f, 6) * desc.maxHeight;
                 h += ridged(wx * 0.04f, wz * 0.04f) * desc.maxHeight * 0.25f;

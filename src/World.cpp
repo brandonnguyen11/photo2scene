@@ -559,7 +559,7 @@ void World::buildRoyalGarden() {
     desc_.waterLevel = 0.78f;
     desc_.waterWaveScale = 0.28f;
     desc_.waterShoreZ = 1e6f;
-    waterDeep_ = {0.08f, 0.32f, 0.40f};
+    waterDeep_ = {0.03f, 0.27f, 0.42f};
     waterShallow_ = {0.28f, 0.60f, 0.62f};
     waterGpu_.upload(makeDiscMesh(desc_.waterRadius, 28, 64));
 
@@ -580,6 +580,30 @@ void World::buildRoyalGarden() {
     });
 }
 
+// Polar mesh with geometrically spaced rings: dense near the center, reaches the horizon.
+static MeshData makeOceanMesh(float outerRadius, int rings, int segments) {
+    MeshData m;
+    const float r0 = 1.5f;
+    for (int i = 0; i <= rings; ++i) {
+        const float r = r0 * std::pow(outerRadius / r0, static_cast<float>(i) / rings);
+        for (int j = 0; j <= segments; ++j) {
+            const float a = static_cast<float>(j) / segments * 6.2831853f;
+            Vertex v{{r * std::cos(a), 0.0f, r * std::sin(a)}, {0, 1, 0},
+                     {r * std::cos(a) * 0.05f, r * std::sin(a) * 0.05f}};
+            m.vertices.push_back(v);
+        }
+    }
+    const uint32_t stride = static_cast<uint32_t>(segments + 1);
+    for (int i = 0; i < rings; ++i) {
+        for (int j = 0; j < segments; ++j) {
+            const uint32_t p0 = i * stride + j, p1 = p0 + 1, p2 = p0 + stride, p3 = p2 + 1;
+            m.indices.insert(m.indices.end(), {p0, p1, p2, p1, p3, p2});
+        }
+    }
+    m.computeBounds();
+    return m;
+}
+
 void World::buildBeach() {
     terrainMaterial_ = WorldMaterial::Sand;
     backdropGpu_.upload(makeBackdropRing(desc_.terrain.size * 0.7f, desc_.terrain.size * 1.05f, 1.2f,
@@ -597,15 +621,15 @@ void World::buildBeach() {
     desc_.hasWater = true;
     desc_.waterCircular = false;
     // Keep the ocean sheet in the −Z basin and clip anything inland of the shore.
-    if (desc_.waterSize < 10.0f) desc_.waterSize = 100.0f;
+    desc_.waterSize = 5000.0f;
     desc_.waterLevel = 0.12f;  // sit above the submerged shelf, under the dunes
-    desc_.waterCenter = {0.0f, desc_.waterLevel, -58.0f};
+    desc_.waterCenter = {0.0f, desc_.waterLevel, -6.0f};
     desc_.waterWaveScale = 0.85f;
     desc_.waterShoreZ = -6.0f;  // discard water that climbs onto the sand
     desc_.waterRadius = 0.0f;
-    waterDeep_ = {0.02f, 0.10f, 0.22f};
-    waterShallow_ = {0.15f, 0.45f, 0.50f};
-    waterGpu_.upload(makeGridMesh(desc_.waterSize, 128));
+    waterDeep_ = {0.02f, 0.18f, 0.35f};
+    waterShallow_ = {0.12f, 0.72f, 0.68f};
+    waterGpu_.upload(makeOceanMesh(2500.0f, 160, 256)); 
 
     // Pier built from individual planks + posts + railings.
     const float pierY = 1.05f;
@@ -695,9 +719,16 @@ void World::buildBeach() {
     // Palms with tapered trunks and drooping fronds.
     MeshData trunk = makeTaperedTrunk(0.28f, 0.12f, 8.5f, 10);
     MeshData frond = makeFrondMesh(3.8f, 0.55f);
-    for (int i = 0; i < 9; ++i) {
-        const float x = (i % 2 == 0 ? -1.0f : 1.0f) * (7.0f + (i / 2) * 4.5f);
-        const float z = 2.0f + (i % 5) * 4.0f;
+ // 0..1 random (your hash01 can return negative values, so use this one for spreading)
+    auto rnd = [](float a, float b) {
+        const float s = std::sin(a * 12.9898f + b * 78.233f) * 43758.5453f;
+        return s - std::floor(s);
+    };
+    for (int i = 0; i < 60; ++i) {
+        const float x = (rnd(i, 11.0f) - 0.5f) * 600.0f;
+        const float z = 4.0f + rnd(i, 12.0f) * 40.0f;
+        // skips palms near cabana
+        if (std::abs(x - 12.0f) < 5.0f && std::abs(z - 8.0f) < 5.0f) continue;
         const float y = terrain_.heightAt(x, z);
         const float bend = 8.0f + hash01(i, 4.0f) * 14.0f;
         addMesh("palm_trunk", trunk, trs({x, y, z}, bend, {1, 1, 1}), palmTrunk, true,
@@ -712,14 +743,129 @@ void World::buildBeach() {
                     frondCol, false, WorldMaterial::Hedge);
         }
     }
+    // ===== Resort: hotels behind the dunes; loungers, umbrellas and towels on the sand =====
+    auto r01 = [](float a, float b) {   // 0..1 random (hash01 can return negatives)
+        const float s = std::sin(a * 12.9898f + b * 78.233f) * 43758.5453f;
+        return s - std::floor(s);
+    };
 
+    auto addHotel = [&](float hx, float hz, float w, float d, int floors,
+                        const glm::vec3& wall, const glm::vec3& accent) {
+        const float floorH = 3.2f;
+        float ground = -1e9f, low = 1e9f;
+        for (float fx : {-0.5f, 0.0f, 0.5f}) {
+            for (float fz : {-0.5f, 0.0f, 0.5f}) {
+                const float g = terrain_.heightAt(hx + fx * w, hz + fz * d);
+                ground = std::max(ground, g);
+                low = std::min(low, g);
+            }
+        }
+        const float x0 = hx - w * 0.5f, x1 = hx + w * 0.5f;
+        const float z0 = hz - d * 0.5f, z1 = hz + d * 0.5f;   // z0 = ocean-facing front
+        const float base = ground + 0.4f;
+        const float top = base + floors * floorH;
+        const glm::vec3 glass(0.22f, 0.40f, 0.52f);
+        const glm::vec3 trim(0.96f, 0.94f, 0.88f);
+        const glm::vec3 roofGrey(0.55f, 0.55f, 0.57f);
+
+        // Podium reaches down to the lowest ground so the tower never floats over a dune.
+        addBox("hotel_podium", {x0 - 1.0f, low - 1.0f, z0 - 1.0f}, {x1 + 1.0f, base, z1 + 1.0f},
+               trim, true, WorldMaterial::Stone);
+        addBox("hotel_body", {x0, base, z0}, {x1, top, z1}, wall, true, WorldMaterial::Stucco);
+        addBox("hotel_roof", {x0 - 0.4f, top, z0 - 0.4f}, {x1 + 0.4f, top + 0.5f, z1 + 0.4f},
+               trim, true, WorldMaterial::Stone);
+        addBox("hotel_roof_unit", {hx - w * 0.2f, top + 0.5f, hz - d * 0.2f},
+               {hx + w * 0.2f, top + 2.5f, hz + d * 0.2f}, roofGrey, true, WorldMaterial::Plain);
+        addBox("hotel_sign", {hx - w * 0.3f, top + 0.5f, z0 + 0.4f},
+               {hx + w * 0.3f, top + 2.3f, z0 + 0.9f}, accent, true, WorldMaterial::Plain);
+
+        // Vertical pilasters between window bays
+        const int bays = std::max(2, static_cast<int>(w / 6.0f));
+        for (int k = 0; k <= bays; ++k) {
+            const float px = x0 + 0.5f + k * (w - 1.0f) / bays;
+            addBox("hotel_pilaster", {px - 0.2f, base, z0 - 0.1f}, {px + 0.2f, top, z0 + 0.05f},
+                   trim, true, WorldMaterial::Stone);
+        }
+
+        // Ribbon windows on every floor; balcony slab + glass railing from the 2nd floor up
+        for (int f = 0; f < floors; ++f) {
+            const float y0 = base + f * floorH;
+            addBox("hotel_windows", {x0 + 1.0f, y0 + 1.0f, z0 - 0.06f},
+                   {x1 - 1.0f, y0 + 2.4f, z0 + 0.02f}, glass, false, WorldMaterial::Plain);
+            if (f > 0) {
+                addBox("hotel_balcony", {x0 + 0.6f, y0, z0 - 1.3f}, {x1 - 0.6f, y0 + 0.2f, z0},
+                       trim, true, WorldMaterial::Stone);
+                addBox("hotel_rail", {x0 + 0.6f, y0 + 0.2f, z0 - 1.3f},
+                       {x1 - 0.6f, y0 + 1.1f, z0 - 1.2f}, glass, false, WorldMaterial::Plain);
+            }
+        }
+
+        // Entrance: glass door + canopy on two columns
+        addBox("hotel_door", {hx - 1.6f, base, z0 - 0.08f}, {hx + 1.6f, base + 2.8f, z0 + 0.02f},
+               glass, false, WorldMaterial::Plain);
+        addBox("hotel_canopy", {hx - 4.0f, base + 3.0f, z0 - 4.0f}, {hx + 4.0f, base + 3.25f, z0},
+               trim, true, WorldMaterial::Stone);
+        for (float sx : {-3.9f, 3.6f}) {
+            addBox("hotel_column", {hx + sx, base, z0 - 3.9f}, {hx + sx + 0.3f, base + 3.0f, z0 - 3.6f},
+                   trim, true, WorldMaterial::Stone);
+        }
+    };
+
+    const glm::vec3 hotelWalls[] = {{0.93f, 0.90f, 0.82f}, {0.96f, 0.96f, 0.96f},
+                                    {0.88f, 0.78f, 0.62f}, {0.70f, 0.82f, 0.86f},
+                                    {0.95f, 0.80f, 0.70f}};
+    const glm::vec3 hotelAccents[] = {{0.15f, 0.45f, 0.70f}, {0.85f, 0.30f, 0.25f},
+                                      {0.10f, 0.55f, 0.50f}, {0.90f, 0.65f, 0.15f}};
+    for (int i = 0; i < 7; ++i) {
+        const float hx = -280.0f + i * 95.0f + (r01(i, 51.0f) - 0.5f) * 20.0f;
+        const float hz = 56.0f + r01(i, 53.0f) * 6.0f;
+        const float w = 28.0f + r01(i, 54.0f) * 14.0f;
+        const int floors = 5 + static_cast<int>(r01(i, 52.0f) * 6.0f);
+        addHotel(hx, hz, w, 12.0f, floors, hotelWalls[i % 5], hotelAccents[i % 4]);
+    }
+    // ---- Loungers, umbrellas and towels on the sand ----
+    const glm::vec3 fabrics[] = {{0.95f, 0.95f, 0.95f}, {0.20f, 0.50f, 0.80f}, {0.90f, 0.30f, 0.30f},
+                                 {0.95f, 0.80f, 0.25f}, {0.30f, 0.75f, 0.65f}};
+    for (int i = 0; i < 40; ++i) {
+        const float x = -150.0f + i * 7.5f + (r01(i, 41.0f) - 0.5f) * 3.0f;
+        const float z = 0.5f + r01(i, 42.0f) * 6.0f;
+        if (std::abs(x) < 4.5f || (x > 8.0f && x < 16.0f)) continue;   // keep the pier and cabana clear
+        const float y = terrain_.heightAt(x, z) - 0.02f;
+
+        // Umbrella
+        addBox("umbrella_pole", {x - 0.03f, y, z - 0.03f}, {x + 0.03f, y + 2.0f, z + 0.03f},
+               woodDark, true, WorldMaterial::Wood);
+        addMesh("umbrella_top", makeConeMesh(1.4f, 0.5f, 12), trs({x, y + 1.9f, z}, 0, {1, 1, 1}),
+                fabrics[i % 5], true, WorldMaterial::Plain);
+
+        // Two loungers facing the sea: flat seat + reclined backrest at the inland end
+        for (float dx : {-1.0f, 1.0f}) {
+            const float chairX = x + dx;
+            addBox("chair_seat", {chairX - 0.3f, y, z - 0.9f}, {chairX + 0.3f, y + 0.2f, z + 0.9f},
+                   fabrics[(i + 1) % 5], false, WorldMaterial::Plain);
+            addMesh("chair_back", makeBoxMesh({-0.3f, 0.0f, 0.0f}, {0.3f, 0.07f, 0.8f}),
+                    glm::translate(glm::mat4(1.0f), glm::vec3(chairX, y + 0.2f, z + 0.9f)) *
+                        glm::rotate(glm::mat4(1.0f), glm::radians(-55.0f), glm::vec3(1, 0, 0)),
+                    fabrics[(i + 1) % 5], false, WorldMaterial::Plain);
+        }
+
+        // Towel beside them, at a random angle
+        addMesh("towel", makeBoxMesh({-0.4f, 0.0f, -0.95f}, {0.4f, 0.03f, 0.95f}),
+                trs({x + 2.6f, y + 0.02f, z + 0.2f}, (r01(i, 43.0f) - 0.5f) * 60.0f, {1, 1, 1}),
+                fabrics[(i + 2) % 5], false, WorldMaterial::Plain);
+    }
     if (desc_.photoSpots.empty()) {
         desc_.photoSpots.push_back({"Shore", {0.0f, 0.0f, -6.0f}, 180.0f});
         desc_.photoSpots.push_back({"Pier", {0.0f, 1.2f, -10.0f}, 180.0f});
     }
 
-    buildGrass(std::min(desc_.grassCount, 28000), -40.0f, 40.0f, 2.0f, 45.0f,
-               [&](float x, float z) { return terrain_.heightAt(x, z) > 1.0f; });
+       
+        buildGrass(std::min(desc_.grassCount, 40000), -300.0f, 300.0f, 70.0f, 130.0f,
+               [&](float x, float z) {
+                   if (z < 70.0f || z > 130.0f) return false;
+                   if (terrain_.heightAt(x, z) < 1.0f) return false;
+                   return std::sin(x * 0.05f) * std::sin(z * 0.09f + 1.3f) > -0.1f;
+               });
 }
 
 void World::buildForest() {

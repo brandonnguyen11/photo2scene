@@ -61,7 +61,7 @@ void main() {
     sky += uSunColor * horizonBand * (0.15 + 0.35 * pow(mu, 4.0)) * uSunIntensity * 0.25;
 
     if (elev < 0.0) {
-        sky = mix(uHorizonColor * 0.65, uHorizonColor * 0.18, clamp(-elev * 1.8, 0.0, 1.0));
+        sky = mix(sky, uHorizonColor * 0.85, clamp(-elev * 2.0, 0.0, 1.0));
     }
 
     // Soft scrolling clouds.

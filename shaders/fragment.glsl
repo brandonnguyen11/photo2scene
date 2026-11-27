@@ -167,12 +167,12 @@ vec3 proceduralAlbedo(vec3 baseLin) {
         float fine = fbm21(vWorldPos.xz * 9.0);
         float rip = sin(vWorldPos.x * 4.5 + n * 6.0 + vWorldPos.z * 0.8) * 0.5 + 0.5;
         vec3 dry = baseLin * mix(0.88, 1.18, fine);
-        vec3 warm = baseLin * vec3(1.12, 0.95, 0.72);
+        vec3 warm = baseLin * vec3(1.05, 0.97, 0.82);
         vec3 wet = baseLin * vec3(0.42, 0.38, 0.32);
-        float wetness = smoothstep(0.55, -0.05, vWorldPos.y);
+        float wetness = smoothstep(0.25, 0.0, vWorldPos.y - 0.12);  
         vec3 col = mix(dry, warm, n * 0.45);
         col = mix(col, wet, wetness * 0.85);
-        return col * mix(0.92, 1.12, rip);
+        return col * mix(0.97, 1.03, rip);
     }
     if (uMaterial == 5) { // stone / masonry
         float n = fbm21(vWorldPos.xz * 2.2 + vWorldPos.y * 2.2);

@@ -15,6 +15,7 @@ out vec3 vNormal;
 out vec2 vUV;
 out float vViewDepth;
 out vec2 vLocalXZ;
+out float vTime;
 
 float hash21(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -117,4 +118,6 @@ void main() {
     vLocalXZ = aPos.xz;
     vViewDepth = -viewPos.z;
     gl_Position = uProj * viewPos;
+
+    vTime = uTime;
 }
